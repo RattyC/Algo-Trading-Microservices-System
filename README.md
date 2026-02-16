@@ -1,99 +1,46 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+Algo-Trading Microservices System (v1.0)
+ระบบจำลองการเทรดอัตโนมัติที่พัฒนาด้วยสถาปัตยกรรม Microservices โดยเน้นความสมจริงของราคาตลาดด้วยโมเดล Geometric Brownian Motion (GBM) และการส่งข้อมูลแบบ Real-time ผ่าน WebSockets
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+🏗️ สถาปัตยกรรม Microservices ของระบบ
+ระบบนี้ถูกแยกส่วนการทำงานออกเป็นบริการย่อยๆ เพื่อความยืดหยุ่นและการขยายตัว (Scalability):
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+API Gateway (Port 3000): ทำหน้าที่เป็นปราการด่านหน้า (Reverse Proxy) รับ Request จาก Frontend และส่งต่อไปยัง Service ที่ถูกต้อง
 
-## Description
+Market-Data Service (Port 3003): หัวใจหลักในการสร้างราคาจำลอง (Synthesis) และพ่นข้อมูล (Broadcast) ผ่าน WebSockets
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Frontend Admin & Trading (Port 3002): หน้าจอควบคุมระดับสูงสำหรับผู้ดูแลระบบ และหน้าจอเทรดสำหรับผู้ใช้งานทั่วไป
 
-## Project setup
+🛠️ คำสั่งติดตั้ง Library ทั้งหมด (All-in-One Command)
+เพื่อให้ง่ายต่อการ Setup คุณสามารถคัดลอกคำสั่งด้านล่างนี้ไปรันที่หน้า Root ของโปรเจค เพื่อติดตั้ง Library ที่จำเป็นทั้งฝั่ง Backend และ Frontend ครับ:
 
-```bash
-$ npm install
-```
+📖 รายละเอียดการทำงานของระบบ (Internal Workflow)
+1. ตรรกะการสร้างราคา (Market Physics)
 
-## Compile and run the project
+ระบบไม่ได้ใช้การสุ่มแบบมั่วๆ แต่ใช้ Stochastic Process ในระดับ MarketDataService เพื่อคำนวณราคา:
 
-```bash
-# development
-$ npm run start
+Drift & Volatility: ราคาจะเคลื่อนที่แบบมีทิศทางและความผันผวนที่ปรับระดับได้
 
-# watch mode
-$ npm run start:dev
+Manual Override: Admin สามารถแทรกแซงราคา (Inject Liquidity) เพื่อทดสอบระบบในสภาวะที่กำหนดเอง
 
-# production mode
-$ npm run start:prod
-```
+2. การสื่อสารแบบ Real-time
 
-## Run tests
+WebSockets (Socket.io): ใช้สำหรับการผลักข้อมูลราคา (Push Notification) จาก Backend ไปยังหน้าจอ Dashboard ทันทีโดยไม่ต้อง Refresh
 
-```bash
-# unit tests
-$ npm run test
+API Proxy: การใช้ createProxyMiddleware ใน Gateway ช่วยให้ Frontend คุยกับหลาย Service ผ่านพอร์ต 3000 เพียงพอร์ตเดียว ลดปัญหาเรื่อง CORS
 
-# e2e tests
-$ npm run test:e2e
+📂 โครงสร้างโฟลเดอร์ (File Mapping)
+🚀 ขั้นตอนการเริ่มใช้งาน (Execution Guide)
+Backend Services:
 
-# test coverage
-$ npm run test:cov
-```
+รัน Gateway: npm run start:dev api-gateway
 
-## Deployment
+รัน Market Data: npm run start:dev market-data
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Frontend Application:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+ไปที่โฟลเดอร์: cd frontend-admin
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+รันแอป: npm run dev (เข้าใช้งานที่ http://localhost:3002/dashboard)
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# Algo-Trading-Microservices-System
+📝 บันทึกจากนักวิจัย (Researcher's Note)
+โปรเจคนี้พัฒนาขึ้นเพื่อศึกษาปฏิสัมพันธ์ระหว่าง Distributed Systems และ Financial Engineering โดยมีการประยุกต์ใช้ความรู้ด้าน Stochastic Calculus เพื่อจำลองพฤติกรรมของสินทรัพย์ดิจิทัล (BTC) ให้ใกล้เคียงความจริงมากที่สุด
