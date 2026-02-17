@@ -20,11 +20,10 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
 });
     }
 
-    validate(payload: JwtPayload) {
+    validate(payload: any) {
         // 3. ลอง console.log ดูว่า Code วิ่งมาถึงตรงนี้ไหม
         console.log('Payload inside Strategy:', payload);
 
-        // สิ่งที่ Return ตรงนี้จะไปโผล่ใน req.user ที่ Controller
-        return payload;
-    }
-}
+        {
+    return { sub: payload.sub, email: payload.email, role: payload.role };}
+    }}

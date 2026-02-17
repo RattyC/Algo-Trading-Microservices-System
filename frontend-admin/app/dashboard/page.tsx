@@ -4,10 +4,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries, LineSeries, ISeriesApi } from 'lightweight-charts';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
+import Cookies from 'js-cookie';
 import {
   Activity, Zap, TrendingUp, RefreshCcw, ShieldAlert, Wifi,
-  WifiOff, BarChart3, Settings2, Terminal, AlertTriangle, Play, Pause
+  WifiOff, BarChart3, Settings2, Terminal, AlertTriangle,
+  ExternalLink, UserCircle
 } from 'lucide-react';
+import LogoutButton from '../components/LogoutButton';
 
 export default function AlgoTradingDashboard() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +35,7 @@ export default function AlgoTradingDashboard() {
   useEffect(() => {
     if (!isMounted || !chartContainerRef.current) return;
 
+    // --- 1. Initialize Chart ---
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 480,
@@ -50,11 +54,19 @@ export default function AlgoTradingDashboard() {
       color: '#3b82f6', lineWidth: 2, title: 'Trendline (SMA 10)'
     });
 
+    // --- 2. Socket Connection (Market Data Port 3003) ---
     const socket: Socket = io('http://localhost:3003');
     const priceHistory: number[] = [];
 
-    socket.on('connect', () => { setIsConnected(true); addLog('Connected to Market Stream', 'success'); });
-    socket.on('disconnect', () => { setIsConnected(false); addLog('Disconnected from Stream', 'error'); });
+    socket.on('connect', () => {
+      setIsConnected(true);
+      addLog('Neural Link Established with Market Service', 'success');
+    });
+
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+      addLog('Market Link Interrupted', 'error');
+    });
 
     socket.on('price_update', (data) => {
       setPrice(data.price);
@@ -77,68 +89,101 @@ export default function AlgoTradingDashboard() {
     };
   }, [isMounted]);
 
+  // --- 3. Command Execution (Gateway Port 3000) ---
   const runCommand = async (endpoint: string, payload: any = {}) => {
     try {
-      await axios.post(`http://localhost:3000/market/${endpoint}`, payload);
-      addLog(`Command [${endpoint}] executed successfully`, 'success');
-      if (endpoint === 'set-price') setMarketMode('Manual');
-      if (endpoint === 'reset') setMarketMode('Auto');
+      const token = Cookies.get('access_token'); 
+      await axios.post(`http://localhost:3000/market/${endpoint}`, payload, {
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      addLog(`Command [${endpoint}] deployed successfully`, 'success');
     } catch (err) {
-      addLog(`Failed to execute [${endpoint}]`, 'error');
+      addLog(`System Error: Execution [${endpoint}] Failed`, 'error');
+      console.error('Command execution error:', err);
     }
-  };
+};
 
   if (!isMounted) return null;
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-8 font-sans selection:bg-blue-500/30">
-      {/* Top Navigation / Status */}
+
+      {/* 🚀 Top Navigation / Researcher Branding */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-500/10 p-2 rounded-lg"><Activity className="text-blue-500 w-6 h-6" /></div>
-            <h1 className="text-2xl font-black text-white tracking-tight">ALGO-CORE <span className="text-blue-500 text-sm font-mono ml-2">v2.0.4-BETA</span></h1>
+        <div className="flex items-center gap-4">
+          <div className="bg-blue-600/10 p-3 rounded-2xl border border-blue-500/20 shadow-lg shadow-blue-500/5">
+            <Activity className="text-blue-500 w-8 h-8" />
           </div>
-          <div className="flex items-center gap-4 text-[10px] font-bold tracking-widest uppercase text-slate-500">
-            <span className="flex items-center gap-1">{isConnected ? <Wifi className="w-3 h-3 text-emerald-500" /> : <WifiOff className="w-3 h-3 text-rose-500" />} {isConnected ? 'Link Stable' : 'Link Lost'}</span>
-            <span className="flex items-center gap-1"><Settings2 className="w-3 h-3" /> Mode: <span className={marketMode === 'Auto' ? 'text-emerald-500' : 'text-amber-500'}>{marketMode}</span></span>
+          <div>
+            <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              ALGO-CORE <span className="bg-blue-600 text-[10px] px-2 py-0.5 rounded text-white">ADMIN</span>
+            </h1>
+            <div className="flex items-center gap-2 mt-1">
+              <UserCircle className="w-3 h-3 text-slate-500" />
+            
+            </div>
           </div>
         </div>
 
-        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-8 shadow-2xl">
-          <div className="text-right">
-            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Market Benchmark (BTC)</p>
-            <p className="text-4xl font-mono font-black text-white leading-none">
-              ${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </p>
+        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+          {/* Market Status Overview */}
+          <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-6 shadow-2xl h-[80px]">
+            <div className="text-right">
+              <p className="text-[10px] text-slate-500 font-bold uppercase mb-1 flex items-center justify-end gap-1">
+                {isConnected ? <Wifi className="w-3 h-3 text-emerald-500" /> : <WifiOff className="w-3 h-3 text-rose-500" />}
+                Live BTC Index
+              </p>
+              <p className="text-3xl font-mono font-black text-white leading-none">
+                ${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className={`h-10 w-1 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-rose-500'}`} />
           </div>
-          <div className={`h-12 w-1 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-rose-500'}`} />
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.location.href = '/trading'}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition-all text-xs font-bold"
+            >
+              <ExternalLink className="w-4 h-4" /> USER VIEW
+            </button>
+            <LogoutButton />
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Left Column: Visuals & Logs */}
+        {/* --- LEFT: Visualization & Logs --- */}
         <div className="xl:col-span-8 space-y-6">
           <div className="bg-slate-900/50 rounded-3xl border border-slate-800/50 overflow-hidden shadow-inner backdrop-blur-sm">
             <div className="p-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
-              <div className="flex items-center gap-2"><BarChart3 className="w-4 h-4 text-blue-400" /><span className="text-xs font-bold text-slate-400 uppercase">Live Execution Graph</span></div>
-              <div className="flex gap-2">
-                <div className="w-2 h-2 rounded-full bg-rose-500/20 border border-rose-500/50" />
-                <div className="w-2 h-2 rounded-full bg-amber-500/20 border border-amber-500/50" />
-                <div className="w-2 h-2 rounded-full bg-emerald-500/20 border border-emerald-500/50" />
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-400" />
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Real-time Quantitative Graph</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase">
+                  <Settings2 className="w-3 h-3" /> System Mode:
+                  <span className={marketMode === 'Auto' ? 'text-emerald-500' : 'text-amber-500'}>{marketMode}</span>
+                </span>
               </div>
             </div>
             <div ref={chartContainerRef} className="w-full" />
           </div>
 
-          <div className="bg-slate-950 rounded-2xl border border-slate-900 p-5 font-mono shadow-2xl">
-            <div className="flex items-center gap-2 mb-4 text-slate-500"><Terminal className="w-4 h-4" /><span className="text-[10px] font-bold uppercase tracking-widest">System Kernel Logs</span></div>
-            <div className="space-y-1.5 min-h-[120px]">
+          {/* System Logs */}
+          <div className="bg-slate-950 rounded-2xl border border-slate-900 p-5 font-mono shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2 opacity-5"><Terminal className="w-20 h-20" /></div>
+            <div className="flex items-center gap-2 mb-4 text-slate-500 relative z-10">
+              <Terminal className="w-4 h-4" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">System Kernel Output</span>
+            </div>
+            <div className="space-y-1.5 min-h-[120px] relative z-10">
               {logs.map((log, i) => (
                 <div key={i} className="text-[11px] flex gap-4 animate-in fade-in slide-in-from-left-2">
-                  <span className="text-slate-600">[{log.time}]</span>
+                  <span className="text-slate-600 w-20">[{log.time}]</span>
                   <span className={log.type === 'error' ? 'text-rose-500' : log.type === 'success' ? 'text-emerald-500' : 'text-blue-400'}>
-                    {log.type === 'success' ? '>>>' : '---'} {log.msg}
+                    {log.type === 'success' ? '✔' : log.type === 'error' ? '✘' : 'ℹ'} {log.msg}
                   </span>
                 </div>
               ))}
@@ -146,38 +191,42 @@ export default function AlgoTradingDashboard() {
           </div>
         </div>
 
-        {/* Right Column: Controls */}
+        {/* --- RIGHT: Controls --- */}
         <div className="xl:col-span-4 space-y-6">
-          {/* Price Injection */}
-          <div className="group bg-gradient-to-br from-slate-900 to-slate-950 p-6 rounded-3xl border border-slate-800 hover:border-blue-500/50 transition-all shadow-xl">
-            <h3 className="text-xs font-black text-blue-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><Zap className="w-4 h-4 fill-blue-500/20" /> Liquidity Injection</h3>
+          {/* Liquidity Injection */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-6 rounded-3xl border border-slate-800 hover:border-blue-500/30 transition-all shadow-xl">
+            <h3 className="text-xs font-black text-blue-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+              <Zap className="w-4 h-4 fill-blue-500/20" /> Price Manipulation
+            </h3>
             <div className="space-y-4">
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm">$</span>
                 <input
                   type="number" value={inputPrice} onChange={(e) => setInputPrice(e.target.value)}
                   placeholder="Target Price Override..."
-                  className="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-4 pl-10 pr-4 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-10 pr-4 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
               </div>
               <button
                 onClick={() => runCommand('set-price', { price: Number(inputPrice) })}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
               >
-                EXECUTE OVERRIDE
+                DEPLOY PRICE OVERRIDE
               </button>
               <button
                 onClick={() => runCommand('reset')}
                 className="w-full bg-slate-800/50 hover:bg-slate-800 text-slate-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
               >
-                <RefreshCcw className="w-3 h-3" /> REVERT TO SYSTEM AUTO
+                <RefreshCcw className="w-3 h-3" /> RESTORE AUTO-PILOT
               </button>
             </div>
           </div>
 
-          {/* Market Dynamics */}
+          {/* Volatility Matrix */}
           <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
-            <h3 className="text-xs font-black text-emerald-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2"><ShieldAlert className="w-4 h-4" /> Market Volatility</h3>
+            <h3 className="text-xs font-black text-emerald-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4" /> Market Volatility
+            </h3>
             <div className="grid grid-cols-2 gap-3">
               {['low', 'normal', 'high', 'crash'].map((lvl) => (
                 <button
@@ -189,26 +238,17 @@ export default function AlgoTradingDashboard() {
                 </button>
               ))}
             </div>
-            <div className="mt-4 p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl">
-              <button
-                onClick={() => runCommand('volatility', { level: 'crash' })}
-                className="w-full flex items-center justify-center gap-2 text-rose-500 text-[10px] font-black uppercase"
-              >
-                <AlertTriangle className="w-3 h-3" /> Trigger Black Swan Event
-              </button>
-            </div>
           </div>
 
-          {/* Researcher Identity Card */}
-          <div className="bg-blue-600/5 p-5 rounded-2xl border border-blue-500/10 flex items-start gap-4">
-            <div className="bg-blue-600/20 p-2 rounded-lg"><TrendingUp className="w-4 h-4 text-blue-400" /></div>
-            <div>
-              <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1">Quant Research Node</p>
-              <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Project Alpha: Stochastic Price Engine.
-                Specializing in Quantum AI Risk Mitigation.
-              </p>
-            </div>
+          {/* Emergency Protocols */}
+          <div className="bg-rose-500/5 p-6 rounded-3xl border border-rose-500/10">
+            <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">Risk Management</h3>
+            <button
+              onClick={() => runCommand('volatility', { level: 'crash' })}
+              className="w-full flex items-center justify-center gap-3 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white py-4 rounded-xl text-[10px] font-black uppercase border border-rose-500/20 transition-all active:scale-95"
+            >
+              <AlertTriangle className="w-4 h-4" /> Trigger Black Swan Event
+            </button>
           </div>
         </div>
       </div>

@@ -70,7 +70,7 @@ export class AuthService {
         const tokens = await this.signTokens({ id: String(user._id), email: user.email, role: user.role });
         console.log('User signed in and tokens generated:', { userId: user._id, email: user.email });       
         await this.storeRefreshHash(String(user._id), tokens.refresh_token);
-        return tokens;
+        return { ...tokens, role: user.role };
     }
 
     async refreshTokens(userId: string, email: string, role: string, refreshToken: string) {

@@ -3,7 +3,7 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
 
-@Controller('market') 
+@Controller('') 
 export class MarketDataController {
   constructor(private readonly marketDataService: MarketDataService) {}
 
