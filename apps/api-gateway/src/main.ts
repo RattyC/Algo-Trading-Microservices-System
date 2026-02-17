@@ -1,3 +1,4 @@
+//api-gateway/src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { ApiGatewayModule } from './api-gateway.module';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -16,24 +17,18 @@ async function bootstrap() {
 
   //  Auth Service Proxy (Port 3001)
   app.use(
-    '/auth',
-    createProxyMiddleware({
-      target: 'http://localhost:3001',
-      changeOrigin: true,
-      pathRewrite: { '^/auth': '/auth' }, 
-      on: {
-        proxyReq: (proxyReq, req) => {
-          logger.log(`🔐 Auth Route: ${req.method} ${req.url} -> http://localhost:3001${proxyReq.path}`);
-        },
-        error: (err) => logger.error(`❌ Auth Proxy Error: ${err.message}`),
-      },
-    }),
-  );
+  '/auth',
+  createProxyMiddleware({
+    target: 'http://localhost:3001',
+    changeOrigin: true,
+    pathRewrite: { '^/auth': '/auth' }, 
+  }),
+);
 
   //  Market Service Proxy (Port 3003)
-app.use(
+  app.use(
     '/market',
-    createProxyMiddleware({ 
+    createProxyMiddleware({
       target: 'http://localhost:3003',
       changeOrigin: true,
       on: {
@@ -44,9 +39,9 @@ app.use(
     }),
   );
 
-  const PORT = 3000; 
+  const PORT = 3000;
   await app.listen(PORT);
-  
+
   logger.log(`🚀 [API-Gateway] is screaming live on: http://localhost:${PORT}`);
   logger.log(`📡 Routing: /auth -> :3001 | /market -> :3003`);
 }

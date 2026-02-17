@@ -12,8 +12,8 @@ export class MarketController {
     return 'Hello World!';
   }
   @Post('set-price')
-  //@UseGuards(AccessTokenGuard, RolesGuard) // 🔒 ล็อกประตู 1: ต้อง Login
-  //@Roles('admin')                      // 🔒 ล็อกประตู 2: ต้องเป็น Admin
+  @UseGuards(AccessTokenGuard, RolesGuard) //  ล็อกประตู 1: ต้อง Login
+  @Roles('admin')                      //  ล็อกประตู 2: ต้องเป็น Admin
   setPrice(@Body() body: { price: number }) {
     this.client.emit('cmd_set_price', { price: body.price });
     return { message: 'Price update command sent!' };

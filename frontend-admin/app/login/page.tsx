@@ -1,3 +1,4 @@
+// frontend-admin/app/login/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +14,6 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // 💡 ตรวจสอบถ้ามี Token อยู่แล้วให้ดีดไปหน้าตามสิทธิ์ทันที
     useEffect(() => {
         const token = Cookies.get('access_token');
         const role = Cookies.get('user_role');
@@ -28,20 +28,19 @@ export default function LoginPage() {
         setError('');
 
         try {
-            // 🔌 เชื่อมต่อ API Gateway (Port 3000)
-            const response = await axios.post('http://localhost:3000/auth/login', {
-                email,
-                password
+            // เชื่อมต่อ API Gateway (Port 3000)
+            const response = await axios.post('http://localhost:3000/auth/signin', { 
+                email, password 
             });
-
+            console.log("Full Response:", response.data);
             const { access_token, role } = response.data;
 
-            // 💾 บันทึกสิทธิ์ลงใน Cookies (สำคัญมากเพื่อให้ Middleware อ่านได้)
-            Cookies.set('access_token', access_token, { expires: 1, path: '/' });
+            //  บันทึกสิทธิ์ลงใน Cookies 
             Cookies.set('user_role', role, { expires: 1, path: '/' });
+            Cookies.set('access_token', access_token, { expires: 1, path: '/' });
 
-            // 🧭 แยกเส้นทางตาม Role
-            if (role === 'admin') {
+            //  แยกเส้นทางตาม Role
+            if (role === 'admin'|| role === 'ADMIN') {
                 router.push('/dashboard');
             } else {
                 router.push('/trading');

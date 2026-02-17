@@ -14,7 +14,7 @@ import { UsersModule } from '@app/users';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        // 💡 แก้เป็น MONGO_URI ให้ตรงกับไฟล์ .env ของคุณ
+        //  แก้เป็น MONGO_URI ให้ตรงกับไฟล์ .env ของคุณ
         uri: configService.get<string>('MONGODB_URI'), 
       }),
       inject: [ConfigService],
