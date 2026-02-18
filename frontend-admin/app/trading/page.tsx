@@ -5,7 +5,7 @@ import { createChart, ColorType, CandlestickSeries, ISeriesApi } from 'lightweig
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import Cookies from 'js-cookie';
-import { Wallet, History, Activity, LayoutDashboard } from 'lucide-react';
+import { Wallet, History, Activity, LayoutDashboard, TrendingUp, TrendingDown } from 'lucide-react';
 import LogoutButton from '../components/LogoutButton';
 import { useRouter } from 'next/navigation';
 
@@ -16,16 +16,26 @@ export default function ProfessionalTradingTerminal() {
 
     const [isMounted, setIsMounted] = useState(false);
     const [price, setPrice] = useState<number>(0);
-    const [balance, setBalance] = useState<number>(100000);
-    const [position, setPosition] = useState({ amount: 0, avgPrice: 0 });
     const [trades, setTrades] = useState<any[]>([]);
     const [orderQty, setOrderQty] = useState<string>("0.1");
     const [userRole, setUserRole] = useState<string | undefined>(undefined);
+    const [portfolio, setPortfolio] = useState({ balance: 0, holdings: [] as any[] });
 
     useEffect(() => {
         setIsMounted(true);
         setUserRole(Cookies.get('user_role'));
     }, []);
+
+    const fetchPortfolio = async () => {
+        try {
+            const userId = Cookies.get('user_id');
+            if (!userId) return;
+            const res = await axios.get(`http://localhost:3000/market/portfolio/${userId}`);
+            setPortfolio(res.data);
+        } catch (error) {
+            console.error("Load Portfolio Failed:", error);
+        }
+    };
 
     const fetchTradeHistory = async () => {
         try {
@@ -37,7 +47,7 @@ export default function ProfessionalTradingTerminal() {
             });
 
             setTrades(response.data.map((t: any) => ({
-                id: t._id, 
+                id: t._id,
                 type: t.type,
                 qty: t.amount,
                 price: t.price,
@@ -48,12 +58,13 @@ export default function ProfessionalTradingTerminal() {
         }
     };
 
-    // เรียกใช้เมื่อโหลดหน้าจอ
     useEffect(() => {
         if (isMounted) {
             fetchTradeHistory();
+            fetchPortfolio(); 
         }
     }, [isMounted]);
+
     useEffect(() => {
         if (!isMounted || !chartContainerRef.current) return;
 
@@ -95,27 +106,38 @@ export default function ProfessionalTradingTerminal() {
             chart.remove();
         };
     }, [isMounted]);
-
-    const handleTrade = (type: 'BUY' | 'SELL') => {
+        // แก้ไข Logic การเทรด: จัดการยอดเงินและราคาเฉลี่ย
+    const handleTrade = async (type: 'BUY' | 'SELL') => {
         const qty = Number(orderQty);
         if (Number.isNaN(qty) || qty <= 0) return alert("กรุณาระบุจำนวนที่ถูกต้อง");
 
-        const cost = price * qty;
+        try {
+            const userId = Cookies.get('user_id');
+            const token = Cookies.get('access_token');
 
-        if (type === 'BUY') {
-            if (balance < cost) return alert("ยอดคงเหลือไม่พอ");
-            const newAmount = position.amount + qty;
-            const newAvgPrice = ((position.amount * position.avgPrice) + cost) / newAmount;
-            setBalance(b => b - cost);
-            setPosition({ amount: newAmount, avgPrice: newAvgPrice });
-        } else {
-            if (position.amount < qty) return alert("จำนวนเหรียญไม่พอ");
-            setBalance(b => b + cost);
-            setPosition(p => ({ ...p, amount: p.amount - qty, avgPrice: p.amount - qty === 0 ? 0 : p.avgPrice }));
+            await axios.post('http://localhost:3000/market/trade', {
+                userId,
+                type,
+                symbol: 'BTC/USDT',
+                amount: qty,
+                price: price
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            //  เมื่อสำเร็จ ให้ Refresh ข้อมูลใหม่ทั้งหมด
+            fetchPortfolio();
+            fetchTradeHistory();
+            alert(`รายการ ${type} สำเร็จ!`);
+        } catch (error: any) {
+            const msg = error.response?.data?.message || "ระบบขัดข้อง";
+            alert(`เทรดล้มเหลว: ${msg}`);
         }
-        //  แก้ไข: ใช้ Date.now() เป็น ID ชั่วคราวแทน Index ใน Keys 
-        setTrades(prev => [{ id: Date.now(), type, qty, price, time: new Date().toLocaleTimeString() }, ...prev]);
     };
+
+    // หาเหรียญ BTC ในพอร์ตเพื่อแสดงจำนวนที่ถืออยู่
+    const btcHolding = portfolio.holdings.find(h => h.symbol === 'BTC/USDT') || { amount: 0, avgPrice: 0 };
+    const totalEquity = portfolio.balance + (btcHolding.amount * price);
 
     if (!isMounted) return null;
 
@@ -149,19 +171,28 @@ export default function ProfessionalTradingTerminal() {
 
             <main className="max-w-480 mx-auto p-12 grid grid-cols-12 gap-8">
                 <div className="col-span-12 xl:col-span-3 space-y-8">
+                    {/* Portfolio Card */}
                     <div className="bg-linear-to-br from-slate-900 to-black p-8 rounded-4xl border border-slate-800 shadow-2xl">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Wallet className="w-4 h-4" /> Portfolio Equity</p>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Wallet className="w-4 h-4" /> Total Equity</p>
                         <h2 className="text-4xl font-mono font-black text-white tracking-tight">
-                            ${(balance + (position.amount * price)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            ${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </h2>
+                        <div className="mt-4 pt-4 border-t border-slate-800/50 space-y-2">
+                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                                <span className="text-slate-500">Available Cash</span>
+                                <span className="text-white">${portfolio.balance.toLocaleString()}</span>
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Trade Control */}
                     <div className="bg-slate-900/50 p-8 rounded-4xl border border-slate-800">
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 text-center">Trade Control</h3>
                         <div className="space-y-6">
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
                                     <span>Order Size</span>
-                                    <span>Hold: {position.amount.toFixed(4)} BTC</span>
+                                    <span>Hold: {btcHolding.amount.toFixed(4)} BTC</span>
                                 </div>
                                 <div className="relative">
                                     <input
@@ -172,6 +203,11 @@ export default function ProfessionalTradingTerminal() {
                                     />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600">BTC</span>
                                 </div>
+                                {btcHolding.amount > 0 && (
+                                    <div className="text-[9px] font-bold text-slate-500 uppercase text-right">
+                                        Avg Entry: ${btcHolding.avgPrice.toLocaleString()}
+                                    </div>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <button onClick={() => handleTrade('BUY')} className="bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-2xl font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/20">BUY</button>
@@ -182,28 +218,23 @@ export default function ProfessionalTradingTerminal() {
                 </div>
 
                 <div className="col-span-12 xl:col-span-6">
-                    {/* ✅ แก้ไข: min-h-137.5 */}
                     <div className="bg-slate-950 rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-2xl h-full min-h-137.5 flex flex-col">
                         <div className="p-6 border-b border-slate-900 bg-slate-900/20 flex justify-between items-center">
                             <span className="text-lg font-black text-white tracking-widest">BTC / USDT</span>
                             <span className="text-3xl font-mono font-black text-emerald-400 animate-pulse">${price.toLocaleString()}</span>
                         </div>
-                        {/* ✅ แก้ไข: grow */}
                         <div ref={chartContainerRef} className="grow w-full bg-[#020617]" style={{ height: '480px' }} />
                     </div>
                 </div>
 
                 <div className="col-span-12 xl:col-span-3">
-                    {/* ✅ แก้ไข: rounded-4xl และ h-137.5 */}
                     <div className="bg-slate-900/30 rounded-4xl border border-slate-800/50 p-6 h-137.5 flex flex-col">
                         <div className="flex items-center gap-2 mb-6">
                             <History className="w-4 h-4 text-slate-500" />
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Recent Activity</h3>
                         </div>
-                        {/* ✅ แก้ไข: grow */}
                         <div className="space-y-3 overflow-y-auto grow pr-2 custom-scrollbar">
                             {trades.map((t) => (
-                                // ✅ แก้ไข: ใช้ t.id แทน Index ใน Keys ตามมาตรฐาน SonarLint (S6479)
                                 <div key={t.id} className="flex justify-between items-center p-4 rounded-2xl bg-slate-900/50 border border-slate-800/30 hover:border-slate-700 transition-all">
                                     <span className={`text-[10px] font-black px-2 py-1 rounded ${t.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>{t.type}</span>
                                     <div className="text-right">

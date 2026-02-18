@@ -23,25 +23,57 @@ export class MarketDataService implements OnModuleInit {
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) { }
 
+  async injectBalance(userId: string, amount: number) {
+    return await this.userModel.findByIdAndUpdate(
+      userId,
+      { $inc: { balance: amount } },
+      { new: true }
+    );
+  }
+
+  async onModuleInit() {
+    try {
+
+      const activeDB = this.configModel.db.name;
+      const host = this.configModel.db.host;
+      console.log(` Connected to DB: "${activeDB}" on host: ${host}`);
+
+      const config = await this.configModel.findOne().exec();
+      if (config) {
+        this.currentPrice = config.lastPrice;
+        console.log(`📡 Loaded Market State: $${this.currentPrice}`);
+      } else {
+        await this.configModel.create({ lastPrice: 50000, volatility: 'normal' });
+        console.log('🌱 Created new config in ' + activeDB);
+      }
+    } catch (error) {
+      console.error('❌ Error during DB connection or initialization:', error);
+    }
+  }
   async setVolatility(level: 'low' | 'normal' | 'high' | 'crash') {
     const levels = { low: 0.0005, normal: 0.0015, high: 0.005, crash: 0.02 };
     this.currentVolatility = levels[level];
+    await this.configModel.updateOne(
+      {},
+      { volatility: level },
+      { upsert: true }
+    ).exec();
 
-    // บันทึกค่าลง MongoDB (Update Operation)
-    await this.configModel.updateOne({}, { volatility: level });
-    console.log(`⚠️ Market Volatility set to: ${level}`);
+    console.log(`⚠️ Database Updated: Market Volatility = ${level}`);
   }
 
+  async forcePrice(price: number) {
+    this.currentPrice = price;
+    this.isManualOverride = true;
+    await this.configModel.updateOne(
+      {},
+      { lastPrice: price },
+      { upsert: true }
+    ).exec();
 
-  async onModuleInit() {
-    const config = await this.configModel.findOne().exec();
-    if (config) {
-      this.currentPrice = config.lastPrice;
-      console.log(`📡 Loaded Market State: $${this.currentPrice}`);
-    } else {
-      await this.configModel.create({ lastPrice: 50000, volatility: 'normal' });
-    }
+    this.gateway.broadcastPrice(this.currentPrice);
   }
+
   async getPortfolio(userId: string) {
     const user = await this.userModel.findById(userId).select('balance holdings').exec();
     if (!user) throw new BadRequestException('ไม่พบข้อมูลผู้ใช้');
@@ -114,12 +146,6 @@ export class MarketDataService implements OnModuleInit {
 
   resetToAuto() {
     this.isManualOverride = false;
-  }
-
-  forcePrice(price: number) {
-    this.currentPrice = price;
-    this.isManualOverride = true;
-    this.gateway.broadcastPrice(this.currentPrice);
   }
 
   private gaussianRandom() {

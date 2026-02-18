@@ -1,5 +1,5 @@
-
-import { Prop, Schema } from '@nestjs/mongoose';
+// auth/src/schemas/user.schema.ts
+import { Prop, Schema , SchemaFactory} from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 @Schema({ timestamps: true })
@@ -10,7 +10,7 @@ export class User extends Document {
     @Prop({ required: true })
     passwordHash: string;
 
-    @Prop({ default: 100000 }) // เงินเริ่มต้น
+    @Prop({ default: 100000 }) 
     balance: number;
 
     @Prop({
@@ -22,3 +22,6 @@ export class User extends Document {
     })
     holdings: Array<{ symbol: string; amount: number; avgPrice: number }>;
 }
+export const UserSchema = SchemaFactory.createForClass(User);
+
+

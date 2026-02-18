@@ -5,15 +5,23 @@ import { MarketDataService } from './market-data.service';
 import { CreateTradeDto } from './dto/create-trade.dto';
 
 
-@Controller('market') 
+@Controller('') 
 export class MarketDataController {
   constructor(private readonly marketDataService: MarketDataService) { }
 
   // บงการราคา (Manual Override)
   @Post('set-price')
   async handleSetPrice(@Body() data: { price: number }) {
-    this.marketDataService.forcePrice(data.price);
+    // เรียกใช้ฟังก์ชันที่ส่งงานลง DB
+    await this.marketDataService.forcePrice(data.price); 
     return { status: 'success', price: data.price };
+  }
+
+  @Post('volatility')
+  async handleVolatility(@Body() data: { level: 'low' | 'normal' | 'high' | 'crash' }) {
+    // เรียกใช้ฟังก์ชันที่ส่งงานลง DB
+    await this.marketDataService.setVolatility(data.level);
+    return { status: 'success', newLevel: data.level };
   }
 
   // 🔄 [UPDATE] กลับสู่โหมดอัตโนมัติ
@@ -21,13 +29,6 @@ export class MarketDataController {
   async handleReset() {
     this.marketDataService.resetToAuto();
     return { status: 'success', message: 'Market returned to auto-pilot' };
-  }
-
-  // 🌪️ [UPDATE] ปรับค่าความผันผวน (Volatility Matrix)
-  @Post('volatility')
-  async handleVolatility(@Body() data: { level: 'low' | 'normal' | 'high' | 'crash' }) {
-    await this.marketDataService.setVolatility(data.level);
-    return { status: 'success', newLevel: data.level };
   }
 
   // บันทึกการเทรด (ลงทั้ง Trades และ Users Collection)

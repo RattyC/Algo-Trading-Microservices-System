@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthDto } from './dto/auth.dto';
 import * as argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
+import { User } from './schemas/user.schema';
 
 @Injectable()
 export class AuthService {
@@ -42,35 +43,56 @@ export class AuthService {
 
     async signUp(dto: AuthDto) {
         const email = this.normalizeEmail(dto.email);
-
         const userExists = await this.usersService.findByEmail(email);
         if (userExists) throw new BadRequestException('Email นี้ถูกใช้งานแล้ว');
 
         const passwordHash = await argon2.hash(dto.password);
 
+        // ✅ Cast เป็น any หรือ User เพื่อให้เข้าถึงฟิลด์ที่เพิ่งสร้างใน Schema ได้
         const newUser = await this.usersService.create({
             email,
             passwordHash,
             role: 'user'
-        });
+        }) as any; 
+
         const tokens = await this.signTokens({ id: String(newUser._id), email: newUser.email, role: newUser.role });
         await this.storeRefreshHash(String(newUser._id), tokens.refresh_token);
-        console.log('User created and tokens generated:', { userId: newUser._id, email: newUser.email });
-        return tokens;
+        
+        return {
+            ...tokens,
+            user: {
+                email: newUser.email,
+                role: newUser.role,
+                balance: newUser.balance,  
+                holdings: newUser.holdings   
+            }
+        };
     }
 
     async signIn(dto: AuthDto) {
         const email = this.normalizeEmail(dto.email);
-        const user = await this.usersService.findByEmailWithSecrets(email);
+        
+        // ✅ ใช้ "as any" เพื่อ bypass type check ของ Mongoose Document ชั่วคราว
+        const user = await this.usersService.findByEmailWithSecrets(email) as any;
+        
         if (!user) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
 
         const passwordMatches = await argon2.verify(user.passwordHash, dto.password);
         if (!passwordMatches) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
 
         const tokens = await this.signTokens({ id: String(user._id), email: user.email, role: user.role });
-        console.log('User signed in and tokens generated:', { userId: user._id, email: user.email });       
+        
         await this.storeRefreshHash(String(user._id), tokens.refresh_token);
-        return { ...tokens, role: user.role };
+        
+        return { 
+            ...tokens, 
+            user: {
+                email: user.email,
+                role: user.role,
+                balance: user.balance,   
+                holdings: user.holdings  
+            } 
+        };
     }
 
     async refreshTokens(userId: string, email: string, role: string, refreshToken: string) {
