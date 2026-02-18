@@ -6,7 +6,7 @@ import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import {
-  Activity, Zap, TrendingUp, RefreshCcw, ShieldAlert, Wifi,
+  Activity, Zap,ShieldAlert, Wifi,
   WifiOff, BarChart3, Settings2, Terminal, AlertTriangle,
   ExternalLink, UserCircle
 } from 'lucide-react';
@@ -127,7 +127,7 @@ export default function AlgoTradingDashboard() {
 
         <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
           {/* Market Status Overview */}
-          <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-6 shadow-2xl h-[80px]">
+          <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-6 shadow-2xl h-20">
             <div className="text-right">
               <p className="text-[10px] text-slate-500 font-bold uppercase mb-1 flex items-center justify-end gap-1">
                 {isConnected ? <Wifi className="w-3 h-3 text-emerald-500" /> : <WifiOff className="w-3 h-3 text-rose-500" />}
@@ -142,7 +142,7 @@ export default function AlgoTradingDashboard() {
 
           <div className="flex gap-2">
             <button
-              onClick={() => window.location.href = '/trading'}
+              onClick={() => globalThis.location.href = '/trading'}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition-all text-xs font-bold"
             >
               <ExternalLink className="w-4 h-4" /> USER VIEW
@@ -178,7 +178,7 @@ export default function AlgoTradingDashboard() {
               <Terminal className="w-4 h-4" />
               <span className="text-[10px] font-bold uppercase tracking-widest">System Kernel Output</span>
             </div>
-            <div className="space-y-1.5 min-h-[120px] relative z-10">
+            <div className="space-y-1.5 min-h-30 relative z-10">
               {logs.map((log, i) => (
                 <div key={i} className="text-[11px] flex gap-4 animate-in fade-in slide-in-from-left-2">
                   <span className="text-slate-600 w-20">[{log.time}]</span>

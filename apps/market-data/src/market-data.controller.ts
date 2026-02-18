@@ -1,11 +1,11 @@
 // apps/market-data/src/market-data.controller.ts
 
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Delete, UsePipes, ValidationPipe } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
-
-@Controller('') 
+import { CreateTradeDto } from './dto/create-trade.dto';
+@Controller('')
 export class MarketDataController {
-  constructor(private readonly marketDataService: MarketDataService) {}
+  constructor(private readonly marketDataService: MarketDataService) { }
 
 
   @Post('set-price')
@@ -26,5 +26,29 @@ export class MarketDataController {
   async handleVolatility(@Body() data: { level: 'low' | 'normal' | 'high' | 'crash' }) {
     this.marketDataService.setVolatility(data.level);
     return { status: 'success', newLevel: data.level };
+  }
+
+  @Post('trade')
+  @UsePipes(new ValidationPipe()) // ดักจับ Error ตาม DTO
+  async placeTrade(@Body() dto: CreateTradeDto) {
+    return await this.marketDataService.createTrade(dto);
+  }
+
+  //  ดึงประวัติการเทรดของผู้ใช้
+  @Get('trades/:userId')
+  async getHistory(@Param('userId') userId: string) {
+    return await this.marketDataService.getTradeHistory(userId);
+  }
+
+  // ปรับค่าตลาด (บงการตลาด)
+  @Post('volatility')
+  async setVol(@Body() data: { level: 'low' | 'normal' | 'high' | 'crash' }) {
+    return await this.marketDataService.setVolatility(data.level);
+  }
+
+  @Delete('trades/purge')
+  async clearLogs() {
+    await this.marketDataService.purgeTradeHistory();
+    return { status: 'success', message: 'All trade logs purged' };
   }
 }
