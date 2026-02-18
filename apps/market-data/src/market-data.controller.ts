@@ -3,49 +3,54 @@
 import { Controller, Post, Body, Get, Param, Delete, UsePipes, ValidationPipe } from '@nestjs/common';
 import { MarketDataService } from './market-data.service';
 import { CreateTradeDto } from './dto/create-trade.dto';
-@Controller('')
+
+
+@Controller('market') 
 export class MarketDataController {
   constructor(private readonly marketDataService: MarketDataService) { }
 
-
+  // บงการราคา (Manual Override)
   @Post('set-price')
   async handleSetPrice(@Body() data: { price: number }) {
     this.marketDataService.forcePrice(data.price);
-    return { status: 'success' };
+    return { status: 'success', price: data.price };
   }
 
-
+  // 🔄 [UPDATE] กลับสู่โหมดอัตโนมัติ
   @Post('reset')
   async handleReset() {
     this.marketDataService.resetToAuto();
     return { status: 'success', message: 'Market returned to auto-pilot' };
   }
 
-
+  // 🌪️ [UPDATE] ปรับค่าความผันผวน (Volatility Matrix)
   @Post('volatility')
   async handleVolatility(@Body() data: { level: 'low' | 'normal' | 'high' | 'crash' }) {
-    this.marketDataService.setVolatility(data.level);
+    await this.marketDataService.setVolatility(data.level);
     return { status: 'success', newLevel: data.level };
   }
 
+  // บันทึกการเทรด (ลงทั้ง Trades และ Users Collection)
   @Post('trade')
-  @UsePipes(new ValidationPipe()) // ดักจับ Error ตาม DTO
+  @UsePipes(new ValidationPipe())
   async placeTrade(@Body() dto: CreateTradeDto) {
-    return await this.marketDataService.createTrade(dto);
+    // ใช้ executeTrade เพื่อให้ยอดเงินและเหรียญขยับจริงใน MongoDB
+    return await this.marketDataService.executeTrade(dto.userId, dto);
   }
 
-  //  ดึงประวัติการเทรดของผู้ใช้
+  // ดึงประวัติการเทรดรายบุคคล
   @Get('trades/:userId')
   async getHistory(@Param('userId') userId: string) {
     return await this.marketDataService.getTradeHistory(userId);
   }
 
-  // ปรับค่าตลาด (บงการตลาด)
-  @Post('volatility')
-  async setVol(@Body() data: { level: 'low' | 'normal' | 'high' | 'crash' }) {
-    return await this.marketDataService.setVolatility(data.level);
+  // ดึงยอดเงินและเหรียญในพอร์ต (ใหม่!)
+  @Get('portfolio/:userId')
+  async getPortfolio(@Param('userId') userId: string) {
+    return await this.marketDataService.getPortfolio(userId);
   }
 
+  // ล้างประวัติการเทรด (Admin Only)
   @Delete('trades/purge')
   async clearLogs() {
     await this.marketDataService.purgeTradeHistory();

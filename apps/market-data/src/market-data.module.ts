@@ -9,8 +9,7 @@ import { MarketDataService } from './market-data.service';
 import { MarketDataController } from './market-data.controller';
 import { MarketGateway } from './market.gateway';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/market-data';
-
-// --- นำเข้า Schema ที่เรากำลังจะสร้าง ---
+import { User, UserSchema } from '../../auth/src/schemas/user.schema';
 import { Trade, TradeSchema } from './schemas/trade.schema';
 import { MarketConfig, MarketConfigSchema } from './schemas/market-config.schema';
 
@@ -24,7 +23,8 @@ import { MarketConfig, MarketConfigSchema } from './schemas/market-config.schema
     MongooseModule.forRoot(MONGODB_URI),
     MongooseModule.forFeature([
       { name: Trade.name, schema: TradeSchema },
-      { name: MarketConfig.name, schema: MarketConfigSchema }
+      { name: MarketConfig.name, schema: MarketConfigSchema },
+      { name: User.name, schema: UserSchema }
     ]),
     
     ScheduleModule.forRoot(),
