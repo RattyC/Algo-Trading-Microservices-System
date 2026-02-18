@@ -1,252 +1,147 @@
 "use client";
-
-import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CandlestickSeries, ISeriesApi } from 'lightweight-charts';
-import { io, Socket } from 'socket.io-client';
-import axios from 'axios';
-import Cookies from 'js-cookie';
-import { Wallet, History, Activity, LayoutDashboard, TrendingUp, TrendingDown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Wallet, History, Activity, ArrowUpRight, ArrowDownRight, LayoutDashboard } from 'lucide-react';
+import { useMarket } from '../hooks/useMarket';
+import { usePortfolio } from '../hooks/usePortfolio';
+import MarketChart from '../components/MarketChart';
+import OrderBook from '../components/OrderBook';
 import LogoutButton from '../components/LogoutButton';
 import { useRouter } from 'next/navigation';
+import '../styles/theme.css';
+
+// ✅ Interface สำหรับความเป๊ะของ Type
+interface TradeRecord {
+    id: string;
+    type: 'BUY' | 'SELL';
+    qty: number;
+    price: number;
+    time: string;
+}
 
 export default function ProfessionalTradingTerminal() {
     const router = useRouter();
-    const chartContainerRef = useRef<HTMLDivElement>(null);
-    const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-
-    const [isMounted, setIsMounted] = useState(false);
-    const [price, setPrice] = useState<number>(0);
-    const [trades, setTrades] = useState<any[]>([]);
-    const [orderQty, setOrderQty] = useState<string>("0.1");
-    const [userRole, setUserRole] = useState<string | undefined>(undefined);
-    const [portfolio, setPortfolio] = useState({ balance: 0, holdings: [] as any[] });
-
-    useEffect(() => {
-        setIsMounted(true);
-        setUserRole(Cookies.get('user_role'));
-    }, []);
-
-    const fetchPortfolio = async () => {
-        try {
-            const userId = Cookies.get('user_id');
-            if (!userId) return;
-            const res = await axios.get(`http://localhost:3000/market/portfolio/${userId}`);
-            setPortfolio(res.data);
-        } catch (error) {
-            console.error("Load Portfolio Failed:", error);
-        }
-    };
-
-    const fetchTradeHistory = async () => {
-        try {
-            const userId = Cookies.get('user_id');
-            if (!userId) return;
-
-            const response = await axios.get(`http://localhost:3000/market/trades/${userId}`, {
-                headers: { Authorization: `Bearer ${Cookies.get('access_token')}` }
-            });
-
-            setTrades(response.data.map((t: any) => ({
-                id: t._id,
-                type: t.type,
-                qty: t.amount,
-                price: t.price,
-                time: new Date(t.createdAt).toLocaleTimeString()
-            })));
-        } catch (error) {
-            console.error("Failed to fetch history:", error);
-        }
-    };
-
-    useEffect(() => {
-        if (isMounted) {
-            fetchTradeHistory();
-            fetchPortfolio(); 
-        }
-    }, [isMounted]);
-
-    useEffect(() => {
-        if (!isMounted || !chartContainerRef.current) return;
-
-        const chart = createChart(chartContainerRef.current, {
-            width: chartContainerRef.current.clientWidth,
-            height: 450,
-            layout: { background: { type: ColorType.Solid, color: '#020617' }, textColor: '#64748b' },
-            grid: { vertLines: { color: '#0f172a' }, horzLines: { color: '#0f172a' } },
-            timeScale: { borderColor: '#1e293b', timeVisible: true, secondsVisible: true },
-        });
-
-        const candleSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#10b981', downColor: '#ef4444', borderVisible: false,
-            wickUpColor: '#10b981', wickDownColor: '#ef4444',
-        });
-        candleSeriesRef.current = candleSeries;
-
-        const socket: Socket = io('http://localhost:3003');
-        socket.on('price_update', (data) => {
-            setPrice(data.price);
-            if (candleSeriesRef.current) {
-                candleSeriesRef.current.update({
-                    time: Math.floor(data.time / 1000) as any,
-                    open: data.price, high: data.price, low: data.price, close: data.price
-                });
-            }
-        });
-
-        const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-            }
-        };
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            socket.disconnect();
-            chart.remove();
-        };
-    }, [isMounted]);
-        // แก้ไข Logic การเทรด: จัดการยอดเงินและราคาเฉลี่ย
-    const handleTrade = async (type: 'BUY' | 'SELL') => {
-        const qty = Number(orderQty);
-        if (Number.isNaN(qty) || qty <= 0) return alert("กรุณาระบุจำนวนที่ถูกต้อง");
-
-        try {
-            const userId = Cookies.get('user_id');
-            const token = Cookies.get('access_token');
-
-            await axios.post('http://localhost:3000/market/trade', {
-                userId,
-                type,
-                symbol: 'BTC/USDT',
-                amount: qty,
-                price: price
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            //  เมื่อสำเร็จ ให้ Refresh ข้อมูลใหม่ทั้งหมด
-            fetchPortfolio();
-            fetchTradeHistory();
-            alert(`รายการ ${type} สำเร็จ!`);
-        } catch (error: any) {
-            const msg = error.response?.data?.message || "ระบบขัดข้อง";
-            alert(`เทรดล้มเหลว: ${msg}`);
-        }
-    };
-
-    // หาเหรียญ BTC ในพอร์ตเพื่อแสดงจำนวนที่ถืออยู่
-    const btcHolding = portfolio.holdings.find(h => h.symbol === 'BTC/USDT') || { amount: 0, avgPrice: 0 };
-    const totalEquity = portfolio.balance + (btcHolding.amount * price);
-
-    if (!isMounted) return null;
+    const { price, socketConnected } = useMarket();
+    const { portfolio, trades, handleTrade, totalEquity, btcHolding } = usePortfolio(price);
+    const [orderQty, setOrderQty] = useState("0.1");
 
     return (
-        <div className="min-h-screen bg-[#020617] text-slate-300 font-sans selection:bg-blue-500/30">
-            <nav className="border-b border-slate-800/50 bg-slate-900/20 backdrop-blur-xl sticky top-0 z-50">
-                <div className="max-w-480 mx-auto px-12 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-8">
+        <div className="angel-bg pb-12 min-h-screen">
+            {/* 🧭 Navigation Bar */}
+            <nav className="border-b border-white bg-white/40 backdrop-blur-md sticky top-0 z-50 h-16 flex items-center">
+                <div className="max-w-400 mx-auto w-full px-8 flex justify-between items-center">
+                    <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
-                            <Activity className="text-blue-500 w-6 h-6" />
-                            <span className="font-black text-white text-xl tracking-tighter uppercase">Alpha Terminal</span>
+                            <Activity className="text-slate-900 w-5 h-5" />
+                            <span className="font-black text-slate-900 text-lg tracking-tighter uppercase">Alpha.Terminal</span>
                         </div>
-                        {userRole === 'admin' && (
-                            <button
-                                onClick={() => router.push('/dashboard')}
-                                className="flex items-center gap-2 px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white rounded-xl border border-blue-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
-                            >
-                                <LayoutDashboard className="w-3 h-3" /> Back to Admin
-                            </button>
-                        )}
+                        <button
+                            onClick={() => router.push('/dashboard')}
+                            className="text-[9px] font-black text-slate-400 uppercase border border-slate-200 px-3 py-1 rounded-lg hover:bg-slate-900 hover:text-white transition-all flex items-center gap-1"
+                        >
+                            <LayoutDashboard className="w-3 h-3" /> System Admin
+                        </button>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-700 flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
-                            <span className="text-[10px] font-bold text-emerald-500 uppercase">Live Stream</span>
+                        <div className={`px-4 py-1 rounded-full text-[9px] font-bold uppercase flex items-center gap-2 ${socketConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                            {socketConnected ? 'Neural Link Active' : 'Link Offline'}
                         </div>
                         <LogoutButton />
                     </div>
                 </div>
             </nav>
 
-            <main className="max-w-480 mx-auto p-12 grid grid-cols-12 gap-8">
-                <div className="col-span-12 xl:col-span-3 space-y-8">
-                    {/* Portfolio Card */}
-                    <div className="bg-linear-to-br from-slate-900 to-black p-8 rounded-4xl border border-slate-800 shadow-2xl">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Wallet className="w-4 h-4" /> Total Equity</p>
-                        <h2 className="text-4xl font-mono font-black text-white tracking-tight">
+            {/* 📊 Main Trading Floor */}
+            <main className="max-w-400 mx-auto p-8 grid grid-cols-12 gap-6">
+
+                {/* 💳 LEFT: Portfolio & Execution */}
+                <div className="col-span-12 xl:col-span-3 space-y-6">
+                    <div className="glass-card p-8">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Equity</p>
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
                             ${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </h2>
-                        <div className="mt-4 pt-4 border-t border-slate-800/50 space-y-2">
-                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                                <span className="text-slate-500">Available Cash</span>
-                                <span className="text-white">${portfolio.balance.toLocaleString()}</span>
-                            </div>
+                        <div className="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Available Cash</span>
+                            <span className="text-xs font-mono font-bold text-slate-900">${portfolio.balance.toLocaleString()}</span>
                         </div>
                     </div>
 
-                    {/* Trade Control */}
-                    <div className="bg-slate-900/50 p-8 rounded-4xl border border-slate-800">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 text-center">Trade Control</h3>
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
-                                    <span>Order Size</span>
-                                    <span>Hold: {btcHolding.amount.toFixed(4)} BTC</span>
-                                </div>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        value={orderQty}
-                                        onChange={(e) => setOrderQty(e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-4 px-4 text-white font-mono focus:ring-2 focus:ring-blue-500 outline-none text-lg"
-                                    />
-                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-600">BTC</span>
-                                </div>
-                                {btcHolding.amount > 0 && (
-                                    <div className="text-[9px] font-bold text-slate-500 uppercase text-right">
-                                        Avg Entry: ${btcHolding.avgPrice.toLocaleString()}
-                                    </div>
-                                )}
+                    <div className="glass-card p-8 space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Execution</h3>
+                            <span className="text-[9px] font-bold text-slate-400">Hold: {btcHolding.amount.toFixed(4)} BTC</span>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={orderQty}
+                                    onChange={e => setOrderQty(e.target.value)}
+                                    className="angel-input w-full text-lg font-mono"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">BTC</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <button onClick={() => handleTrade('BUY')} className="bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-2xl font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/20">BUY</button>
-                                <button onClick={() => handleTrade('SELL')} className="bg-rose-600 hover:bg-rose-500 text-white p-5 rounded-2xl font-black transition-all active:scale-95 shadow-lg shadow-rose-600/20">SELL</button>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={() => handleTrade('BUY', Number(orderQty))} className="angel-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none">BUY</button>
+                                <button onClick={() => handleTrade('SELL', Number(orderQty))} className="angel-btn-primary bg-rose-500 hover:bg-rose-600 border-none">SELL</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {/* 📈 CENTER: Chart Analytics */}
                 <div className="col-span-12 xl:col-span-6">
-                    <div className="bg-slate-950 rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-2xl h-full min-h-137.5 flex flex-col">
-                        <div className="p-6 border-b border-slate-900 bg-slate-900/20 flex justify-between items-center">
-                            <span className="text-lg font-black text-white tracking-widest">BTC / USDT</span>
-                            <span className="text-3xl font-mono font-black text-emerald-400 animate-pulse">${price.toLocaleString()}</span>
+                    <div className="glass-card h-full flex flex-col overflow-hidden min-h-150">
+                        <div className="p-6 border-b border-slate-50 flex justify-between items-end bg-white/30">
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bitcoin / Tether</span>
+                                <h1 className="text-4xl font-black text-slate-900 leading-none mt-1">${price.toLocaleString()}</h1>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-xs font-bold text-emerald-500 flex items-center gap-1 justify-end">
+                                    <ArrowUpRight className="w-3 h-3" /> +0.82%
+                                </span>
+                                <p className="text-[9px] font-bold text-slate-300 uppercase mt-1">24h Vol: 1.2M USDT</p>
+                            </div>
                         </div>
-                        <div ref={chartContainerRef} className="grow w-full bg-[#020617]" style={{ height: '480px' }} />
+                        <div className="grow p-2">
+                            <MarketChart theme="light" />
+                        </div>
                     </div>
                 </div>
 
-                <div className="col-span-12 xl:col-span-3">
-                    <div className="bg-slate-900/30 rounded-4xl border border-slate-800/50 p-6 h-137.5 flex flex-col">
-                        <div className="flex items-center gap-2 mb-6">
-                            <History className="w-4 h-4 text-slate-500" />
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Recent Activity</h3>
+                {/* 📜 RIGHT: Order Book & History */}
+                <div className="col-span-12 xl:col-span-3 space-y-6">
+                    <div className="h-95">
+                        <OrderBook currentPrice={price} />
+                    </div>
+
+                    <div className="glass-card p-6 flex flex-col h-70 overflow-hidden">
+                        <div className="flex items-center gap-2 mb-4">
+                            <History className="w-4 h-4 text-slate-400" />
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Activity</h3>
                         </div>
-                        <div className="space-y-3 overflow-y-auto grow pr-2 custom-scrollbar">
-                            {trades.map((t) => (
-                                <div key={t.id} className="flex justify-between items-center p-4 rounded-2xl bg-slate-900/50 border border-slate-800/30 hover:border-slate-700 transition-all">
-                                    <span className={`text-[10px] font-black px-2 py-1 rounded ${t.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>{t.type}</span>
+                        <div className="space-y-2 overflow-y-auto grow pr-1 custom-scrollbar">
+                            {trades.map((t: TradeRecord) => (
+                                <div key={t.id} className="flex justify-between items-center p-3 rounded-2xl bg-slate-50/50 border border-white hover:border-slate-100 transition-all">
+                                    <div>
+                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${t.type === 'BUY' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{t.type}</span>
+                                        <p className="text-[10px] font-bold text-slate-900 mt-1">{t.qty} BTC</p>
+                                    </div>
                                     <div className="text-right">
-                                        <p className="text-xs font-mono font-bold text-white">${t.price.toLocaleString()}</p>
-                                        <p className="text-[10px] text-slate-500">{t.qty} BTC</p>
+                                        <p className="text-[10px] font-mono font-bold text-slate-400">${t.price.toLocaleString()}</p>
+                                        <p className="text-[8px] text-slate-300 font-bold uppercase">{t.time}</p>
                                     </div>
                                 </div>
                             ))}
-                            {trades.length === 0 && <p className="text-center text-slate-600 text-[10px] py-10 italic uppercase font-bold tracking-widest">No market activity</p>}
+                            {trades.length === 0 && (
+                                <p className="text-center text-slate-300 text-[9px] py-10 uppercase font-black">Syncing...</p>
+                            )}
                         </div>
                     </div>
                 </div>
+
             </main>
         </div>
     );

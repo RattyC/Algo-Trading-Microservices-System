@@ -1,139 +1,141 @@
-//login/page.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '../context/AuthContext'; 
 import axios from 'axios';
-import Cookies from 'js-cookie';
-import { Lock, Mail, Activity, Loader2, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Activity, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import '../styles/theme.css';
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { login, user } = useAuth();
+    
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
 
-    // ตรวจสอบถ้า Login อยู่แล้วให้เด้งออกไปหน้าหลักตามสิทธิ์
     useEffect(() => {
-        const token = Cookies.get('access_token');
-        const role = Cookies.get('user_role');
-        if (token && role) {
-            router.replace(role === 'admin' ? '/dashboard' : '/trading');
+        if (searchParams.get('message') === 'AccountCreated') {
+            setSuccessMsg('Account created successfully. Please authorize your session.');
         }
-    }, [router]);
+    }, [searchParams]);
+
+
+    useEffect(() => {
+        if (user) {
+            router.replace(user.role === 'admin' ? '/dashboard' : '/trading');
+        }
+    }, [user, router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
+        setSuccessMsg('');
 
         try {
-            // 📡 ยิงไปที่ API Gateway (Port 3000)
             const response = await axios.post('http://localhost:3000/auth/signin', {
                 email,
                 password,
             });
 
-            // 🔍 ตรวจสอบโครงสร้างข้อมูล (ดึงออกมาตามที่ NestJS ส่งมา)
-            const { access_token, role } = response.data;
+            const { access_token, user: userData } = response.data;
 
-            if (access_token && role) {
-                // 🍪 บันทึก Cookies พร้อมกำหนด Path ให้ทั่วถึงทั้งโปรเจค
-                Cookies.set('access_token', access_token, { expires: 1, path: '/' });
-                Cookies.set('user_role', role, { expires: 1, path: '/' });
-
-                // 🧭 นำทางตามบทบาทของผู้ใช้
-                if (role === 'admin') {
-                    router.push('/dashboard');
-                } else {
-                    router.push('/trading');
-                }
-            } else {
-                throw new Error('โครงสร้างข้อมูลไม่ถูกต้อง (Role หรือ Token หายไป)');
+            if (access_token && userData) {
+                login(userData, access_token);
+                router.push(userData.role === 'admin' ? '/dashboard' : '/trading');
             }
         } catch (err: any) {
-            console.error('Login Error:', err);
-            setError(err.response?.data?.message || 'การเข้าสู่ระบบล้มเหลว กรุณาตรวจสอบข้อมูล');
+            setError(err.response?.data?.message || 'Authorization failed. Please check your credentials.');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Background Glows (Tech Aesthetic) */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/5 blur-[120px] rounded-full" />
+        <div className="angel-bg min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+            <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-100/50 blur-[120px] rounded-full" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-50/50 blur-[120px] rounded-full" />
 
             <div className="w-full max-w-md relative z-10">
-                <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl">
-                    {/* Logo Section */}
+                <div className="glass-card p-10 shadow-2xl shadow-blue-100/20">
                     <div className="flex flex-col items-center mb-10">
-                        <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-600/20 mb-4">
-                            <Activity className="text-white w-8 h-8" />
+                        <div className="bg-slate-900 p-3.5 rounded-2xl shadow-xl shadow-slate-200 mb-5">
+                            <Activity className="text-white w-7 h-7" />
                         </div>
-                        <h1 className="text-2xl font-black text-white tracking-tighter uppercase">Quantum Access</h1>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-2">Algo-Trading Terminal</p>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Quantum Access</h1>
+                        <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-2 text-center">
+                            Authorized Algo-Trading Terminal
+                        </p>
                     </div>
 
+                    {successMsg && (
+                        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-600 text-xs font-bold animate-in fade-in zoom-in-95">
+                            <CheckCircle2 className="w-4 h-4" /> {successMsg}
+                        </div>
+                    )}
+
                     {error && (
-                        <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 text-rose-500 text-xs font-bold animate-in fade-in slide-in-from-top-1">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            {error}
+                        <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-500 text-xs font-bold animate-in shake">
+                            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
                         </div>
                     )}
 
                     <form onSubmit={handleLogin} className="space-y-5">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Identity (Email)</label>
-                            <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity</label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                                 <input
-                                    type="email"
-                                    required
-                                    value={email}
+                                    type="email" required value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-white text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-700"
-                                    placeholder="Enter your email"
+                                    className="angel-input w-full pl-12"
+                                    placeholder="Enter institutional email"
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Credentials (Password)</label>
-                            <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secret Key</label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                                 <input
-                                    type="password"
-                                    required
-                                    value={password}
+                                    type="password" required value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-white text-sm outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-700"
+                                    className="angel-input w-full pl-12"
                                     placeholder="••••••••"
                                 />
                             </div>
                         </div>
 
                         <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] flex items-center justify-center gap-2 mt-4"
+                            type="submit" disabled={isLoading}
+                            className="angel-btn-primary w-full mt-4 h-14 flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span className="text-xs uppercase tracking-widest">Verifying...</span>
-                                </>
+                                <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
-                                <span className="text-xs uppercase tracking-widest">Authorize Session</span>
+                                <span className="text-xs uppercase tracking-widest">Establish Link</span>
                             )}
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-8 border-t border-slate-800/50 text-center">
-                        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
-                            Secure Terminal Access Provided by <span className="text-blue-500/50 underline">Alpha Core Systems</span>
+                    {/* Footer & Navigation */}
+                    <div className="mt-10 pt-8 border-t border-slate-50 text-center space-y-4">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            New Operative? {' '}
+                            <Link href="/signup" className="text-blue-500 hover:text-blue-600 underline underline-offset-4">
+                                Request Access
+                            </Link>
+                        </p>
+                        <div className="h-1 w-12 bg-slate-100 mx-auto rounded-full" />
+                        <p className="text-[8px] text-slate-300 font-bold uppercase tracking-tighter">
+                            Secure Core v2.0 - Biometric Encrypted
                         </p>
                     </div>
                 </div>
