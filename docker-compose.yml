@@ -1,33 +1,32 @@
-
 version: '3.8'
-
 services:
-  # 🐰 RabbitMQ: ตัวกลางส่งข้อความ
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: algo_rabbitmq
-    ports:
-      - "5672:5672"   # Port สำหรับ Code เชื่อมต่อ
-      - "15672:15672" # Port สำหรับหน้าเว็บจัดการ
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    networks:
-      - algo-net
-
-  # 🍃 MongoDB: ฐานข้อมูล
-  mongo:
-    image: mongo
-    container_name: algo_mongo
+  mongodb:
+    image: mongo:latest
     ports:
       - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - algo-net
 
-networks:
-  algo-net:
+  api-gateway:
+    build: ./apps/api-gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
 
-volumes:
-  mongo_data:
+  auth-service:
+    build: ./apps/auth
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mongodb
+
+  market-service:
+    build: ./apps/market-data
+    ports:
+      - "3003:3003"
+    depends_on:
+      - mongodb
+
+  frontend:
+    build: ./frontend-admin
+    ports:
+      - "3002:3000"

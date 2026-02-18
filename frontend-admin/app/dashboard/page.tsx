@@ -6,11 +6,19 @@ import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import {
-  Activity, Zap,ShieldAlert, Wifi,
+  Activity, Zap, ShieldAlert, Wifi,
   WifiOff, BarChart3, Settings2, Terminal, AlertTriangle,
-  ExternalLink, UserCircle
+  ExternalLink, UserCircle, RefreshCcw
 } from 'lucide-react';
 import LogoutButton from '../components/LogoutButton';
+
+
+interface SystemLog {
+  id: number;
+  time: string;
+  msg: string;
+  type: 'info' | 'success' | 'error';
+}
 
 export default function AlgoTradingDashboard() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -23,11 +31,25 @@ export default function AlgoTradingDashboard() {
   const [isConnected, setIsConnected] = useState(false);
   const [marketMode, setMarketMode] = useState<'Auto' | 'Manual'>('Auto');
   const [volatility, setVolatility] = useState('normal');
-  const [logs, setLogs] = useState<Array<{ time: string, msg: string, type: string }>>([]);
+  const [logs, setLogs] = useState<SystemLog[]>([]);
 
-  const addLog = (msg: string, type: string = 'info') => {
+  const addLog = (msg: string, type: SystemLog['type'] = 'info') => {
     const time = new Date().toLocaleTimeString();
-    setLogs(prev => [{ time, msg, type }, ...prev].slice(0, 6));
+    setLogs(prev => [{ id: Date.now() + Math.random(), time, msg, type }, ...prev].slice(0, 6));
+  };
+
+
+  const getLogColorClass = (type: SystemLog['type']) => {
+    if (type === 'error') return 'text-rose-500';
+    if (type === 'success') return 'text-emerald-500';
+    return 'text-blue-400';
+  };
+
+
+  const getLogIcon = (type: SystemLog['type']) => {
+    if (type === 'success') return '✔';
+    if (type === 'error') return '✘';
+    return 'ℹ';
   };
 
   useEffect(() => { setIsMounted(true); }, []);
@@ -35,7 +57,6 @@ export default function AlgoTradingDashboard() {
   useEffect(() => {
     if (!isMounted || !chartContainerRef.current) return;
 
-    // --- 1. Initialize Chart ---
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 480,
@@ -49,12 +70,13 @@ export default function AlgoTradingDashboard() {
       upColor: '#10b981', downColor: '#ef4444', borderVisible: false,
       wickUpColor: '#10b981', wickDownColor: '#ef4444',
     });
+    candleSeriesRef.current = candleSeries;
 
     const smaSeries = chart.addSeries(LineSeries, {
       color: '#3b82f6', lineWidth: 2, title: 'Trendline (SMA 10)'
     });
+    smaSeriesRef.current = smaSeries;
 
-    // --- 2. Socket Connection (Market Data Port 3003) ---
     const socket: Socket = io('http://localhost:3003');
     const priceHistory: number[] = [];
 
@@ -71,12 +93,20 @@ export default function AlgoTradingDashboard() {
     socket.on('price_update', (data) => {
       setPrice(data.price);
       const timestamp = Math.floor(data.time / 1000) as any;
-      candleSeries.update({ time: timestamp, open: data.price, high: data.price, low: data.price, close: data.price });
+
+      if (candleSeriesRef.current) {
+        candleSeriesRef.current.update({
+          time: timestamp, open: data.price, high: data.price, low: data.price, close: data.price
+        });
+      }
 
       priceHistory.push(data.price);
       if (priceHistory.length > 10) priceHistory.shift();
       const avg = priceHistory.reduce((a, b) => a + b, 0) / priceHistory.length;
-      smaSeries.update({ time: timestamp, value: avg });
+
+      if (smaSeriesRef.current) {
+        smaSeriesRef.current.update({ time: timestamp, value: avg });
+      }
     });
 
     const handleResize = () => chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
@@ -89,26 +119,28 @@ export default function AlgoTradingDashboard() {
     };
   }, [isMounted]);
 
-  // --- 3. Command Execution (Gateway Port 3000) ---
   const runCommand = async (endpoint: string, payload: any = {}) => {
     try {
-      const token = Cookies.get('access_token'); 
+      const token = Cookies.get('access_token');
       await axios.post(`http://localhost:3000/market/${endpoint}`, payload, {
-        headers: { Authorization: `Bearer ${token}` } 
+        headers: { Authorization: `Bearer ${token}` }
       });
+
+      if (endpoint === 'set-price') setMarketMode('Manual');
+      if (endpoint === 'reset') setMarketMode('Auto');
+
       addLog(`Command [${endpoint}] deployed successfully`, 'success');
     } catch (err) {
       addLog(`System Error: Execution [${endpoint}] Failed`, 'error');
       console.error('Command execution error:', err);
     }
-};
+  };
 
   if (!isMounted) return null;
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-300 p-4 md:p-8 font-sans selection:bg-blue-500/30">
 
-      {/* 🚀 Top Navigation / Researcher Branding */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
         <div className="flex items-center gap-4">
           <div className="bg-blue-600/10 p-3 rounded-2xl border border-blue-500/20 shadow-lg shadow-blue-500/5">
@@ -120,13 +152,11 @@ export default function AlgoTradingDashboard() {
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <UserCircle className="w-3 h-3 text-slate-500" />
-            
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-          {/* Market Status Overview */}
           <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 p-4 rounded-2xl flex items-center gap-6 shadow-2xl h-20">
             <div className="text-right">
               <p className="text-[10px] text-slate-500 font-bold uppercase mb-1 flex items-center justify-end gap-1">
@@ -153,7 +183,6 @@ export default function AlgoTradingDashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* --- LEFT: Visualization & Logs --- */}
         <div className="xl:col-span-8 space-y-6">
           <div className="bg-slate-900/50 rounded-3xl border border-slate-800/50 overflow-hidden shadow-inner backdrop-blur-sm">
             <div className="p-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
@@ -171,7 +200,6 @@ export default function AlgoTradingDashboard() {
             <div ref={chartContainerRef} className="w-full" />
           </div>
 
-          {/* System Logs */}
           <div className="bg-slate-950 rounded-2xl border border-slate-900 p-5 font-mono shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-2 opacity-5"><Terminal className="w-20 h-20" /></div>
             <div className="flex items-center gap-2 mb-4 text-slate-500 relative z-10">
@@ -179,11 +207,12 @@ export default function AlgoTradingDashboard() {
               <span className="text-[10px] font-bold uppercase tracking-widest">System Kernel Output</span>
             </div>
             <div className="space-y-1.5 min-h-30 relative z-10">
-              {logs.map((log, i) => (
-                <div key={i} className="text-[11px] flex gap-4 animate-in fade-in slide-in-from-left-2">
+              {logs.map((log) => (
+                // ✅ แก้ไข S6479: ใช้ log.id เป็น Key
+                <div key={log.id} className="text-[11px] flex gap-4 animate-in fade-in slide-in-from-left-2">
                   <span className="text-slate-600 w-20">[{log.time}]</span>
-                  <span className={log.type === 'error' ? 'text-rose-500' : log.type === 'success' ? 'text-emerald-500' : 'text-blue-400'}>
-                    {log.type === 'success' ? '✔' : log.type === 'error' ? '✘' : 'ℹ'} {log.msg}
+                  <span className={getLogColorClass(log.type)}>
+                    {getLogIcon(log.type)} {log.msg}
                   </span>
                 </div>
               ))}
@@ -191,10 +220,8 @@ export default function AlgoTradingDashboard() {
           </div>
         </div>
 
-        {/* --- RIGHT: Controls --- */}
         <div className="xl:col-span-4 space-y-6">
-          {/* Liquidity Injection */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-6 rounded-3xl border border-slate-800 hover:border-blue-500/30 transition-all shadow-xl">
+          <div className="bg-linear-to-br from-slate-900 to-slate-950 p-6 rounded-3xl border border-slate-800 hover:border-blue-500/30 transition-all shadow-xl">
             <h3 className="text-xs font-black text-blue-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
               <Zap className="w-4 h-4 fill-blue-500/20" /> Price Manipulation
             </h3>
@@ -222,10 +249,9 @@ export default function AlgoTradingDashboard() {
             </div>
           </div>
 
-          {/* Volatility Matrix */}
           <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
             <h3 className="text-xs font-black text-emerald-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4" /> Market Volatility
+              <ShieldAlert className="w-4 h-4" /> Market Volatility Matrix
             </h3>
             <div className="grid grid-cols-2 gap-3">
               {['low', 'normal', 'high', 'crash'].map((lvl) => (
@@ -240,7 +266,6 @@ export default function AlgoTradingDashboard() {
             </div>
           </div>
 
-          {/* Emergency Protocols */}
           <div className="bg-rose-500/5 p-6 rounded-3xl border border-rose-500/10">
             <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">Risk Management</h3>
             <button
