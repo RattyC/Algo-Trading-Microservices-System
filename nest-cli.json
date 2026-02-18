@@ -29,7 +29,8 @@
       "entryFile": "main",
       "sourceRoot": "apps/market-data/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/market-data/tsconfig.app.json"
+        "tsConfigPath": "apps/market-data/tsconfig.app.json",
+        "webpack": true
       }
     },
     "common": {
