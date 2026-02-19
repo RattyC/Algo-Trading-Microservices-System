@@ -1,8 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose'; 
 
+export type TradeDocument = HydratedDocument<Trade>;
 @Schema({ timestamps: true })
-export class Trade extends Document {
+export class Trade { 
     @Prop({ required: true })
     userId: string;
 
@@ -10,7 +11,7 @@ export class Trade extends Document {
     type: string;
 
     @Prop({ required: true })
-    symbol: string; // เช่น BTC/USDT
+    symbol: string; 
 
     @Prop({ required: true })
     price: number;
@@ -18,4 +19,5 @@ export class Trade extends Document {
     @Prop({ required: true })
     amount: number;
 }
+
 export const TradeSchema = SchemaFactory.createForClass(Trade);

@@ -1,7 +1,11 @@
+
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
-@WebSocketGateway({ cors: { origin: '*' } }) // ยอมให้ Frontend ทุกที่เชื่อมต่อ
+@WebSocketGateway({cors: {
+    origin: '*', 
+    methods: ['GET', 'POST'],
+    credentials: true,}})
 export class MarketGateway {
     @WebSocketServer()
     server: Server;

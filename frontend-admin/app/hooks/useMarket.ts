@@ -7,7 +7,10 @@ export const useMarket = () => {
     const [socketConnected, setSocketConnected] = useState(false);
 
     useEffect(() => {
-        const socket: Socket = io('http://localhost:3003');
+        const socket: Socket = io('http://localhost:3003', {
+            transports: ['websocket'],
+            withCredentials: true,
+        });
 
         socket.on('connect', () => setSocketConnected(true));
         socket.on('disconnect', () => setSocketConnected(false));

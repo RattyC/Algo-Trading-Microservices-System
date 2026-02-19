@@ -26,7 +26,7 @@ export class AuthController {
     @UseGuards(AccessTokenGuard)
     @Get('profile')
     getProfile(@Req() req: any) {
-        return req.user;
+        return this.authService.getFullProfile(req.user.sub); 
     }
 
     @UseGuards(RefreshTokenGuard)

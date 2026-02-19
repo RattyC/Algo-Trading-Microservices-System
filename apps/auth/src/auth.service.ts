@@ -1,11 +1,16 @@
 // src/auth/auth.service.ts
-import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException, NotFoundException, Inject } from '@nestjs/common';
 import { UsersService } from '@app/users';
 import { JwtService } from '@nestjs/jwt';
 import { AuthDto } from './dto/auth.dto';
 import * as argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
-import { User } from './schemas/user.schema';
+import { User } from './schemas/user.schema';   
+import { UserDocument } from '@app/common/database/schemas/user.schema';
+import { Model } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+
+
 
 @Injectable()
 export class AuthService {
@@ -13,6 +18,7 @@ export class AuthService {
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
         private readonly config: ConfigService,
+        @InjectModel(User.name) private userModel: Model<UserDocument>,
     ) { }
 
     private normalizeEmail(email: string) {
@@ -36,6 +42,15 @@ export class AuthService {
         return { access_token, refresh_token };
     }
 
+    async getFullProfile(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+        throw new NotFoundException('User not found');
+    }
+    const userObject = user.toObject();
+    const { passwordHash, refreshTokenHash, ...result } = userObject;
+    return result; 
+}
     private async storeRefreshHash(userId: string, refreshToken: string) {
         const hash = await argon2.hash(refreshToken);
         await this.usersService.setRefreshTokenHash(userId, hash);
@@ -53,45 +68,45 @@ export class AuthService {
             email,
             passwordHash,
             role: 'user'
-        }) as any; 
+        }) as any;
 
         const tokens = await this.signTokens({ id: String(newUser._id), email: newUser.email, role: newUser.role });
         await this.storeRefreshHash(String(newUser._id), tokens.refresh_token);
-        
+
         return {
             ...tokens,
             user: {
                 email: newUser.email,
                 role: newUser.role,
-                balance: newUser.balance,  
-                holdings: newUser.holdings   
+                balance: newUser.balance,
+                holdings: newUser.holdings
             }
         };
     }
 
     async signIn(dto: AuthDto) {
         const email = this.normalizeEmail(dto.email);
-        
+
         // ✅ ใช้ "as any" เพื่อ bypass type check ของ Mongoose Document ชั่วคราว
         const user = await this.usersService.findByEmailWithSecrets(email) as any;
-        
+
         if (!user) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
 
         const passwordMatches = await argon2.verify(user.passwordHash, dto.password);
         if (!passwordMatches) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
 
         const tokens = await this.signTokens({ id: String(user._id), email: user.email, role: user.role });
-        
+
         await this.storeRefreshHash(String(user._id), tokens.refresh_token);
-        
-        return { 
-            ...tokens, 
+
+        return {
+            ...tokens,
             user: {
                 email: user.email,
                 role: user.role,
-                balance: user.balance,   
-                holdings: user.holdings  
-            } 
+                balance: user.balance,
+                holdings: user.holdings
+            }
         };
     }
 
