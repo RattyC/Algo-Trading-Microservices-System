@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Activity, Zap, ShieldAlert, BarChart3, Settings2, Terminal, AlertTriangle, RefreshCcw, Wifi, WifiOff } from 'lucide-react';
+import { Activity, Zap, ShieldAlert, BarChart3, Settings2, Terminal, AlertTriangle, RefreshCcw, Wifi, WifiOff, Trash2 } from 'lucide-react';
 import { useMarket } from '../hooks/useMarket';
 import MarketChart from '../components/MarketChart';
 import LogoutButton from '../components/LogoutButton';
@@ -15,19 +15,25 @@ export default function AdminDashboardPro() {
   const [marketMode, setMarketMode] = useState<'Auto' | 'Manual'>('Auto');
   const [logs, setLogs] = useState<any[]>([]);
 
-  //  ระบบบันทึก Log ภายใน Admin Terminal
+  // ระบบบันทึก Log ภายใน Admin Terminal
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
     const time = new Date().toLocaleTimeString();
     setLogs(prev => [{ id: Date.now(), time, msg, type }, ...prev].slice(0, 5));
   };
 
-  //  สั่งการไปยัง Market Service (Microservices Execution)
-  const runCommand = async (endpoint: string, payload: any = {}) => {
+  // 2. อัปเกรด runCommand ให้รองรับ Method POST และ DELETE
+  const runCommand = async (endpoint: string, payload: any = {}, method: 'POST' | 'DELETE' = 'POST') => {
     try {
       const token = Cookies.get('access_token');
-      await axios.post(`http://localhost:3000/market/${endpoint}`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const url = `http://localhost:3000/market/${endpoint}`;
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      if (method === 'DELETE') {
+        await axios.delete(url, config);
+      } else {
+        await axios.post(url, payload, config);
+      }
+
       if (endpoint === 'set-price') setMarketMode('Manual');
       if (endpoint === 'reset') setMarketMode('Auto');
       addLog(`Command [${endpoint}] deployed successfully`, 'success');
@@ -36,9 +42,17 @@ export default function AdminDashboardPro() {
     }
   };
 
+
+  const handlePurgeLogs = () => {
+    const isConfirmed = window.confirm("⚠️ คำเตือน: คุณกำลังจะลบประวัติการเทรด 'ทั้งหมด' ออกจากฐานข้อมูลถาวร ยืนยันหรือไม่?");
+    if (isConfirmed) {
+      runCommand('trades/purge', {}, 'DELETE');
+    }
+  };
+
   return (
-    <div className="angel-bg pb-12">
-      {/*  Header Section */}
+    <div className="angel-bg pb-12 min-h-screen">
+      {/* Header Section */}
       <nav className="border-b border-white bg-white/40 backdrop-blur-md sticky top-0 z-50 h-20 flex items-center">
         <div className="max-w-7xl mx-auto w-full px-8 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -68,7 +82,7 @@ export default function AdminDashboardPro() {
       </nav>
 
       <main className="max-w-7xl mx-auto p-8 grid grid-cols-12 gap-8">
-        {/*  Left Column: Visual Analytics */}
+        {/* Left Column: Visual Analytics */}
         <div className="col-span-12 lg:col-span-8 space-y-6">
           <div className="glass-card overflow-hidden">
             <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white/30">
@@ -85,7 +99,7 @@ export default function AdminDashboardPro() {
             </div>
           </div>
 
-          {/* 💻 System Kernel Log */}
+          {/* System Kernel Log */}
           <div className="bg-slate-900 rounded-4xl p-6 font-mono text-white shadow-2xl relative overflow-hidden">
             <Terminal className="absolute top-4 right-4 text-white/5 w-24 h-24" />
             <div className="flex items-center gap-2 mb-4 text-slate-500">
@@ -105,7 +119,7 @@ export default function AdminDashboardPro() {
           </div>
         </div>
 
-        {/* 🛠️ Right Column: Manipulation Tools */}
+        {/* Right Column: Manipulation Tools */}
         <div className="col-span-12 lg:col-span-4 space-y-6">
           <div className="glass-card p-8 space-y-6">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
@@ -142,14 +156,24 @@ export default function AdminDashboardPro() {
             </div>
           </div>
 
-          <div className="bg-rose-50/50 border border-rose-100 p-8 rounded-[2.5rem]">
-            <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-4">Risk Protocol</h3>
+          {/* 3. กล่อง Risk Protocol ที่อัปเดตเพิ่มปุ่มลบข้อมูล */}
+          <div className="bg-rose-50/50 border border-rose-100 p-8 rounded-[2.5rem] space-y-4">
+            <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-4">Risk & Data Protocol</h3>
+            
             <button
               onClick={() => runCommand('volatility', { level: 'crash' })}
               className="w-full bg-rose-500 hover:bg-rose-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-rose-200 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
               <AlertTriangle className="w-4 h-4" /> Trigger Black Swan Event
             </button>
+            
+            <button
+              onClick={handlePurgeLogs}
+              className="w-full bg-white border border-rose-200 hover:bg-rose-50 text-rose-500 py-4 rounded-2xl font-black text-[10px] uppercase transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" /> Purge All Trade Logs
+            </button>
+
           </div>
         </div>
       </main>
