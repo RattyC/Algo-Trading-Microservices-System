@@ -1,95 +1,83 @@
-ALPHA-CORE v2.0
-
-
-ALPHA-CORE คือระบบจำลองการซื้อขายความถี่สูง (HFT) และสถาปัตยกรรม Microservices ที่ออกแบบมาเพื่อศึกษาพฤติกรรมตลาดในสภาวะวิกฤต (Black Swan Events) โดยใช้การคำนวณราคาแบบ Stochastic และการควบคุมความผันผวนแบบ Real-time
-
-Project Goal: เพื่อสร้างสภาพแวดล้อมที่ปลอดภัยในการทดสอบอัลกอริทึม Risk Mitigation สำหรับงานวิจัยด้าน Quantum AI
-
-🏗️ System Architecture
-สถาปัตยกรรมแบบ Distributed Microservices ที่สื่อสารกันผ่าน REST API และ WebSockets:
-
-API Gateway (Port 3000): ด่านหน้าจัดการ Routing, Security Proxy และ Request Filtering
-
-Auth Service (Port 3001): ระบบยืนยันตัวตนระดับ Fintech (Argon2 Hashing, JWT, RBAC)
-
-Market Data Service (Port 3003): Engine บงการราคาตลาดและส่งข้อมูลแบบ Real-time Socket.io
-
-Research Terminal (Port 3002):
-
-Admin Dashboard: สำหรับบงการตลาด (Manipulation Mode, Volatility Control)
-
-Trading UI: สำหรับผู้ใช้งานจำลอง (Live PnL, Position Tracking, Technical Charts)
-
-⚡ Key Features
-👑 Admin Manipulation Node
-
-Price Overriding: แทรกแซงราคาตลาดได้ทันทีเพื่อทดสอบความเสถียรของระบบ
-
-Volatility Matrix: ปรับระดับความผันผวนได้ 4 ระดับ: Low, Normal, High, และ Crash
-
-Kernel Logging: ระบบติดตามการทำงานของ Microservices ทุกตัวในหน้าจอเดียว
-
-💹 Quantitative Trading Terminal
-
-Live PnL Engine: คำนวณกำไร/ขาดทุนแบบ Real-time ตามราคาที่ได้รับจาก Socket
-
-Position Management: ระบบคำนวณต้นทุนเฉลี่ย (Average Cost) และปริมาณการถือครอง (Holdings)
-
-Dynamic UI: กราฟ Candlestick ความละเอียดสูงที่ปรับตัวตามข้อมูลที่บงการมาจาก Admin
+Alpha.Core: Advanced Algo-Trading Microservices
+ระบบจำลองการเทรดอัตโนมัติแบบ Real-time ที่สร้างขึ้นด้วยสถาปัตยกรรม Microservices (Monorepo) เพื่อประสิทธิภาพและการขยายตัวของระบบในอนาคต รองรับการคำนวณราคาตลาดจำลองผ่าน WebSocket และการบริหารจัดการพอร์ตการลงทุนของ Alice
 
 🛠️ Tech Stack
-Category	Technologies
-Frontend	Next.js 15, TailwindCSS, Lucide Icons, Lightweight-Charts
-Backend	NestJS (Microservices), RxJS, Socket.io
-Security	JWT, Argon2, Access/Refresh Token Guard, RBAC
-Networking	Axios, API Gateway Proxy, WebSockets
-🚀 Getting Started
+Frontend: Next.js 14 (App Router), Tailwind CSS, Lucide React
+
+Backend: NestJS (Microservices Architecture)
+
+Database: MongoDB (Mongoose ODM)
+
+Real-time: Socket.io (WebSockets)
+
+Charting: Lightweight Charts (TradingView)
+
+Task Scheduling: @nestjs/schedule (Cron Jobs)
+
+🏗️ System Architecture
+โปรเจกต์นี้ถูกออกแบบในรูปแบบ Monorepo โดยแบ่งความรับผิดชอบออกเป็นส่วนๆ ดังนี้:
+
+apps/auth: จัดการระบบยืนยันตัวตนและออกกุญแจ JWT (Port: 3001)
+
+apps/market-data: หัวใจหลักของระบบ จัดการราคา Real-time, Logic การเทรด และการส่งข้อมูลผ่าน Socket (Port: 3003)
+
+frontend-admin: หน้าจอ Dashboard สำหรับควบคุมตลาดและดูวิเคราะห์ข้อมูล (Port: 3002)
+
+libs/common: Shared libraries สำหรับ Schemas, Guards และตัวเชื่อมต่อ MongoDB
+
+📊 Database Schema (3 Core Collections)
+เพื่อให้เป็นไปตามเกณฑ์การตรวจสอบ (CRUD Operations), ระบบมีการจัดการข้อมูล 3 ส่วนหลัก:
+
+Users Collection: เก็บข้อมูล balance (ยอดเงินคงเหลือ) และ holdings (รายการเหรียญที่ถือครอง)
+
+Trades Collection: เก็บประวัติการซื้อขายทั้งหมด (symbol, amount, price, type)
+
+MarketConfigs Collection: เก็บสถานะล่าสุดของตลาด (lastPrice, volatility)
+
+⚡ Key Features
+Real-time Engine: ระบบปั่นราคาอัตโนมัติทุก 2 วินาทีโดยใช้ Gaussian Random Walk
+
+Admin Control: สามารถ Override ราคาตลาด และปรับระดับความผันผวน (Volatility) ได้แบบสดๆ
+
+Portfolio Management: ระบบคำนวณราคาเฉลี่ย (Avg Price) และตัดยอดเงินจริงเมื่อมีการซื้อขาย
+
+Robust Charting: กราฟพื้นที่ (Area Chart) สีฟ้าสไตล์ Minimal พร้อมระบบป้องกัน Error ข้อมูลซ้ำ
+
+🚀 Getting Started (การติดตั้งและรันระบบ)
 1. Prerequisites
 
-Node.js (v20+ recommended)
+Node.js (v18 หรือสูงกว่า)
 
-NPM or PNPM
+MongoDB (รันที่ localhost:27017)
 
-2. Installation
+2. Environment Variables
 
-ติดตั้ง Dependencies ทั้งหมดสำหรับทุก Microservice:
-
-Bash
-# Install core dependencies
-npm install @nestjs/microservices @nestjs/jwt @nestjs/passport passport passport-jwt argon2 class-validator class-transformer axios js-cookie socket.io-client lightweight-charts lucide-react http-proxy-middleware
-3. Environment Setup
-
-สร้างไฟล์ .env ในแต่ละ Service (Auth, Market, Gateway) โดยระบุค่าดังนี้:
+สร้างไฟล์ .env ที่ Root ของโปรเจกต์:
 
 ข้อมูลโค้ด
-JWT_SECRET=your_quantum_secret_key
-DATABASE_URL=mongodb+srv://...
-PORT_GATEWAY=3000
-PORT_AUTH=3001
-PORT_MARKET=3003
-4. Running the Project
+MONGODB_URI=mongodb://localhost:27017/algo-trading
+JWT_ACCESS_SECRET=your_super_secret_key
+3. Installation
 
-แนะนำให้เปิด Terminal แยก 4 หน้าต่างเพื่อรันตามลำดับ:
+Bash
+npm install
+4. Running the Services (ต้องรันตามลำดับนี้)
 
-Auth Service: npm run start:dev auth
+เปิด Terminal แยกกันสำหรับแต่ละคำสั่ง:
 
-Market Service: npm run start:dev market-data
+Bash
+# 1. รันระบบ Auth
+npm run start auth
 
-API Gateway: npm run start:dev api-gateway
+# 2. รันระบบ Market Data (ส่งราคา Real-time)
+npm run start market-data
 
-Frontend: npm run dev
-
-🧪 Scientific Context
-ในโปรเจกต์นี้ เราประยุกต์ใช้สมการ Stochastic เพื่อจำลองความเคลื่อนไหวของราคาแบบสุ่ม (Random Walk) ซึ่งเป็นพื้นฐานในการทดสอบอัลกอริทึม Quantum Risk Mitigation:
-
-P 
-t+1
-​	
- =P 
-t
-​	
- ×(1+Δvolatility)
-โดยที่ราคาในวินาทีถัดไป (P 
-t+1
-​	
- ) จะถูกกำหนดโดยระดับความผันผวนที่ Admin เลือกใช้งาน
+# 3. รันหน้าจอ Dashboard
+cd frontend-admin && npm run dev
+📈 API Endpoints (Market Service)
+Method	Endpoint	Description
+POST	/market/trade	ดำเนินการเทรด (ซื้อ/ขาย)
+GET	/market/portfolio/:userId	ดึงข้อมูลยอดเงินและเหรียญในพอร์ต
+POST	/market/set-price	Admin: บังคับราคาตลาด
+POST	/market/volatility	Admin: ปรับความผันผวน (low, normal, high, crash)
+DELETE	/market/trades/purge	Admin: ล้างประวัติการเทรดทั้งหมด
