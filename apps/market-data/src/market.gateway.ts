@@ -1,19 +1,21 @@
-// apps/market-data/src/market.gateway.ts
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
-@WebSocketGateway({cors: {
-    origin: '*', 
-    methods: ['GET', 'POST'],
-    credentials: true,}})
+@WebSocketGateway({
+    cors: {
+        origin: '*', 
+        methods: ['GET', 'POST'],
+        credentials: true,
+    }
+})
 export class MarketGateway {
     @WebSocketServer()
     server: Server;
 
     broadcastPrice(price: number) {
-        this.server.emit('priceUpdate',price, {
+        this.server.emit('priceUpdate', {
             symbol: 'BTCUSDT',
-            price,
+            price: price,
             time: Date.now(),
         });
     }

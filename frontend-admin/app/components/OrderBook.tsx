@@ -16,7 +16,7 @@ export default function OrderBook({ currentPrice }: { currentPrice: number }) {
         const socket = io('http://localhost:3003');
 
         // จำลองข้อมูล Order Book (ในระบบจริงจะรับจาก Socket)
-        socket.on('price_update', (data) => {
+        socket.on('priceUpdate', (data) => {
             const generateOrders = (basePrice: number, isAsk: boolean) => {
                 let cumulativeTotal = 0;
                 return Array.from({ length: 8 }).map((_, i) => {

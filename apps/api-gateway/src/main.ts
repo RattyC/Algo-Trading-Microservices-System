@@ -36,7 +36,6 @@ async function bootstrap() {
   createProxyMiddleware({
     target: 'http://localhost:3003',
     changeOrigin: true,
-    pathRewrite: { '^/market': '' }, 
     on: {
       proxyReq: (proxyReq, req) => {
         console.log(`📡 Forwarding to Market Service: http://localhost:3003${proxyReq.path}`);

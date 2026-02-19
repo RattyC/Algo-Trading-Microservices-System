@@ -1,3 +1,4 @@
+// apps/market-data/src/market-data.service.ts
 import { Injectable, OnModuleInit, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -36,6 +37,14 @@ export class MarketDataService implements OnModuleInit {
     if (!user) throw new BadRequestException('ไม่พบผู้ใช้ในระบบ');
 
     const { type, amount, price, symbol } = dto;
+
+    if (price <= 0) {
+        throw new BadRequestException('ราคาของเหรียญต้องมากกว่า 0');
+    }
+    if (amount <= 0) {
+        throw new BadRequestException('จำนวนเหรียญต้องมากกว่า 0');
+    }
+
     const totalCost = price * amount;
 
     if (!user.holdings) user.holdings = [];

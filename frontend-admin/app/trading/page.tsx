@@ -9,7 +9,6 @@ import LogoutButton from '../components/LogoutButton';
 import { useRouter } from 'next/navigation';
 import '../styles/theme.css';
 
-// ✅ Interface สำหรับความเป๊ะของ Type
 interface TradeRecord {
     id: string;
     type: 'BUY' | 'SELL';
@@ -23,6 +22,24 @@ export default function ProfessionalTradingTerminal() {
     const { price, socketConnected } = useMarket();
     const { portfolio, trades, handleTrade, totalEquity, btcHolding } = usePortfolio(price);
     const [orderQty, setOrderQty] = useState("0.1");
+    const onTradeExecute = async (type: 'BUY' | 'SELL') => {
+        const qtyNumber = Number(orderQty);
+
+        // เช็คก่อนว่ากรอกตัวเลขมาถูกต้องไหม
+        if (!qtyNumber || qtyNumber <= 0) {
+            alert("❌ กรุณาระบุจำนวน BTC ที่ถูกต้อง");
+            return;
+        }
+
+        const result = await handleTrade(type, qtyNumber, price);
+
+        if (result.success) {
+            alert(`✅ ทำรายการ ${type} จำนวน ${orderQty} BTC สำเร็จ!`);
+            setOrderQty("0.1"); 
+        } else {
+            alert(`❌ ปฏิเสธการเทรด: ${result.msg}`);
+        }
+    };
 
     return (
         <div className="angel-bg pb-12 min-h-screen">
@@ -83,8 +100,19 @@ export default function ProfessionalTradingTerminal() {
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">BTC</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => handleTrade('BUY', Number(orderQty))} className="angel-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none">BUY</button>
-                                <button onClick={() => handleTrade('SELL', Number(orderQty))} className="angel-btn-primary bg-rose-500 hover:bg-rose-600 border-none">SELL</button>
+                                {/* 🎯 ใช้ onTradeExecute แทน handleTrade ตรงๆ */}
+                                <button
+                                    onClick={() => onTradeExecute('BUY')}
+                                    className="angel-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none"
+                                >
+                                    BUY
+                                </button>
+                                <button
+                                    onClick={() => onTradeExecute('SELL')}
+                                    className="angel-btn-primary bg-rose-500 hover:bg-rose-600 border-none"
+                                >
+                                    SELL
+                                </button>
                             </div>
                         </div>
                     </div>
