@@ -14,7 +14,7 @@ export const useMarket = () => {
 
         socket.on('connect', () => setSocketConnected(true));
         socket.on('disconnect', () => setSocketConnected(false));
-        socket.on('price_update', (data) => setPrice(data.price));
+        socket.on('price_Update', (data) => setPrice(data.price));
 
         return () => {
             socket.disconnect();

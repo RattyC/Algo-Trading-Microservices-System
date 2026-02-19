@@ -1,4 +1,4 @@
-
+// apps/market-data/src/market.gateway.ts
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
@@ -11,7 +11,7 @@ export class MarketGateway {
     server: Server;
 
     broadcastPrice(price: number) {
-        this.server.emit('price_update', {
+        this.server.emit('priceUpdate',price, {
             symbol: 'BTCUSDT',
             price,
             time: Date.now(),

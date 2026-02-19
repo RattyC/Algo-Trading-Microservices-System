@@ -91,21 +91,36 @@ export class MarketDataService implements OnModuleInit {
 
 
   async onModuleInit() {
-    const config = await this.configModel.findOne().exec();
-    if (config) {
-      this.currentPrice = config.lastPrice;
-    } else {
-      await this.configModel.create({ lastPrice: 50000, volatility: 'normal' });
+    try {
+        const config = await this.configModel.findOne();
+        if (!config || !config.lastPrice || config.lastPrice <= 0) {
+            const initialPrice = 50000.00;
+            await this.configModel.updateOne(
+                {}, 
+                { lastPrice: initialPrice, volatility: 'normal' }, 
+                { upsert: true }
+            );
+            this.currentPrice = initialPrice;
+            console.log('🚀 [Market] Initialized with default price: 50,000');
+        } else {
+            this.currentPrice = Number(config.lastPrice);
+            console.log(`🚀 [Market] Loaded existing price: ${this.currentPrice}`);
+        }
+    } catch (err) {
+        console.error('❌ [Market] Failed to initialize price:', err);
+        this.currentPrice = 50000.00; 
     }
-  }
+}
 
   @Cron('*/2 * * * * *')
   async generatePrice() {
     if (!this.isManualOverride) {
-      const standardChange = this.currentPrice * (0.00002 + this.currentVolatility * this.gaussianRandom());
-      this.currentPrice = Number(this.currentPrice + standardChange);
+      const basePrice = this.currentPrice > 0 ? this.currentPrice : 50000;
+      const standardChange = basePrice * (0.00002 + this.currentVolatility * this.gaussianRandom());
+      this.currentPrice = Number(basePrice + standardChange);
     }
     this.currentPrice = Number(this.currentPrice.toFixed(2));
+    this.gateway.broadcastPrice(this.currentPrice);
     this.gateway.broadcastPrice(this.currentPrice);
     console.log('📈 Current Price:', this.currentPrice);
     await this.configModel.updateOne({}, { lastPrice: this.currentPrice });

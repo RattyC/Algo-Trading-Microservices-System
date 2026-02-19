@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { Activity, Zap, ShieldAlert, BarChart3, Settings2, Terminal, AlertTriangle, RefreshCcw, Wifi, WifiOff } from 'lucide-react';
-import { useMarket } from '../hooks/useMarket'; 
+import { useMarket } from '../hooks/useMarket';
 import MarketChart from '../components/MarketChart';
 import LogoutButton from '../components/LogoutButton';
 import axios from 'axios';
@@ -57,7 +57,9 @@ export default function AdminDashboardPro() {
                 {socketConnected ? <Wifi className="w-3 h-3 text-emerald-500" /> : <WifiOff className="w-3 h-3 text-rose-500" />}
                 Market Index
               </span>
-              <span className="text-2xl font-mono font-black text-slate-900 leading-none">${price.toLocaleString()}</span>
+              <span className="text-2xl font-mono font-black text-slate-900 leading-none">
+                ${(price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
             </div>
             <div className="h-8 w-px bg-slate-200" />
             <LogoutButton />
