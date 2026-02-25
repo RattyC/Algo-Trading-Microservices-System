@@ -18,7 +18,7 @@ async function bootstrap() {
   //  Auth Service Proxy (Port 3001)
   app.use(
   createProxyMiddleware({
-    // 💡 เปลี่ยนจาก filter เป็น pathFilter
+    //  เปลี่ยนจาก filter เป็น pathFilter
     pathFilter: '/auth', 
     target: 'http://localhost:3001',
     changeOrigin: true,
@@ -32,8 +32,9 @@ async function bootstrap() {
 
   //  Market Service Proxy (Port 3003)
   app.use(
-  '/market',
+  //'/market',
   createProxyMiddleware({
+    pathFilter: '/market',
     target: 'http://localhost:3003',
     changeOrigin: true,
     on: {
