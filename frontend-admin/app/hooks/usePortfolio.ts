@@ -15,10 +15,9 @@ export const usePortfolio = (currentPrice: number) => {
         const userId = Cookies.get('user_id');
         const token = Cookies.get('access_token');
 
-        if (!userId || !token) {
-            console.warn('⚠️ Missing UserID or Token');
-            return;
-        }
+        if (!userId || userId === 'undefined' || !token) {
+        return;
+    }
 
         const authConfig = {
             headers: { Authorization: `Bearer ${token}` },

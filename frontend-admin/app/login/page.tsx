@@ -2,17 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '../context/AuthContext'; 
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { Lock, Mail, Activity, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import '../styles/theme.css';
+import Cookies from 'js-cookie';
+import { jwtDecode } from "jwt-decode";
 
 export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login, user } = useAuth();
-    
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -32,11 +34,11 @@ export default function LoginPage() {
         }
     }, [user, router]);
 
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
-        setSuccessMsg('');
 
         try {
             const response = await axios.post('http://localhost:3000/auth/signin', {
@@ -46,12 +48,37 @@ export default function LoginPage() {
 
             const { access_token, user: userData } = response.data;
 
-            if (access_token && userData) {
-                login(userData, access_token);
-                router.push(userData.role === 'admin' ? '/dashboard' : '/trading');
+            if (access_token) {
+                let userId = userData?._id || userData?.id;
+                if (!userId) {
+                    try {
+                        const payloadBase64 = access_token.split('.')[1];
+                        const decodedJson = atob(payloadBase64);
+                        const payload = JSON.parse(decodedJson);
+                        
+
+                        userId = payload.sub; 
+                        console.log(" Unlocked ID from Token:", userId);
+                    } catch (decodeErr) {
+                        console.error("Failed to decode token", decodeErr);
+                    }
+                }
+
+                console.log(" Final User ID:", userId);
+                if (userId && userId !== 'undefined') {
+                    Cookies.set('access_token', access_token, { expires: 1 });
+                    Cookies.set('user_id', userId, { expires: 1 });
+                    Cookies.set('user_role', userData?.role || 'user', { expires: 1 });
+
+                    const completeUserData = { ...userData, id: userId };
+                    login(completeUserData, access_token);
+                    router.push(completeUserData.role === 'admin' ? '/dashboard' : '/trading');
+                } else {
+                    setError("System Error: ไม่สามารถระบุตัวตน (ID) ได้จากระบบ");
+                }
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Authorization failed. Please check your credentials.');
+            setError(err.response?.data?.message || 'Authorization failed.');
         } finally {
             setIsLoading(false);
         }

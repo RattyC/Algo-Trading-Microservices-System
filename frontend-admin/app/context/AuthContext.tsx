@@ -1,8 +1,6 @@
-// frontend-admin/app/context/AuthContext.tsx
 "use client";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
-import axios from 'axios';
 
 interface AuthContextType {
     user: any;
@@ -15,18 +13,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<any>(null);
+    const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
-        // โหลดข้อมูล User จาก LocalStorage เมื่อเปิดเว็บขึ้นมาใหม่
         const savedUser = localStorage.getItem('user_data');
-        if (savedUser) setUser(JSON.parse(savedUser));
+        if (savedUser) {
+            setUser(JSON.parse(savedUser));
+        }
+        setIsLoaded(true);
     }, []);
 
     const login = (userData: any, token: string) => {
+        const userId = userData.id || userData._id;
         setUser(userData);
         localStorage.setItem('user_data', JSON.stringify(userData));
         Cookies.set('access_token', token, { expires: 1 });
         Cookies.set('user_role', userData.role, { expires: 1 });
+        Cookies.set('user_id', userId, { expires: 1 }); 
     };
 
     const logout = () => {
@@ -34,11 +37,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.clear();
         Cookies.remove('access_token');
         Cookies.remove('user_role');
+        Cookies.remove('user_id');
         window.location.href = '/login';
     };
 
     const updateBalance = (newBalance: number) => {
         setUser((prev: any) => {
+            if (!prev) return null;
             const updated = { ...prev, balance: newBalance };
             localStorage.setItem('user_data', JSON.stringify(updated));
             return updated;
@@ -47,7 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <AuthContext.Provider value={{ user, login, logout, updateBalance }}>
-            {children}
+            {isLoaded ? children : <div className="angel-bg min-h-screen" />}
         </AuthContext.Provider>
     );
 };
