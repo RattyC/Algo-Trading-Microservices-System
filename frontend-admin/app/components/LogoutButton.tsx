@@ -14,8 +14,6 @@ export default function LogoutButton() {
         setIsExiting(true);
         try {
             const token = Cookies.get('access_token');
-            
-            //  ตรวจสอบว่ามี Token ไหมก่อนยิง
             if (token) {
                 await axios.post('http://localhost:3000/auth/logout', {}, {
                     headers: { 
@@ -28,7 +26,6 @@ export default function LogoutButton() {
             // หาก Backend ล่มหรือ Token หมดอายุแล้ว เรายังคงต้องล้างฝั่ง Client
             console.warn("Session already expired on server or network error.");
         } finally {
-            // ล้าง Cookies ทั้งหมดไม่ว่าจะยิงสำเร็จหรือไม่
             Cookies.remove('access_token', { path: '/' });
             Cookies.remove('user_role', { path: '/' });
             

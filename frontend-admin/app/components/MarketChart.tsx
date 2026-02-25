@@ -15,7 +15,7 @@ export default function MarketChart({ theme = 'light' }: { theme?: 'light' | 'da
             width: chartContainerRef.current.clientWidth,
             height: 400,
             layout: {
-                background: { type: ColorType.Solid, color: '#0b0e11' }, // พื้นหลังมืดแบบในรูปน้อง
+                background: { type: ColorType.Solid, color: '#0b0e11' }, 
                 textColor: '#d1d4dc',
             },
             grid: {
@@ -34,8 +34,8 @@ export default function MarketChart({ theme = 'light' }: { theme?: 'light' | 'da
             bottomColor: 'rgba(41, 98, 255, 0.05)',
             lineWidth: 2,
         });
-        const socket = io('http://localhost:3003', {
-            transports: ['websocket'], // บังคับใช้ websocket เพื่อเลี่ยงปัญหา CORS
+        const socket =   io('http://localhost:3003', {
+            transports: ['websocket'],
         });
 
         socket.on('connect', () => {
@@ -66,8 +66,7 @@ export default function MarketChart({ theme = 'light' }: { theme?: 'light' | 'da
         };
 
         socket.on('priceUpdate', handleData);
-        socket.on('price_update', handleData); // ดักไว้เผื่อ Backend ใช้ชื่อเดิม
-
+        socket.on('price_update', handleData); 
         const handleResize = () => {
             if (chartContainerRef.current) {
                 chart.applyOptions({ width: chartContainerRef.current.clientWidth });

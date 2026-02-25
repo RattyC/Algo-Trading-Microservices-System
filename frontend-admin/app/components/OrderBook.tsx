@@ -9,13 +9,12 @@ interface OrderEntry {
 }
 
 export default function OrderBook({ currentPrice }: { currentPrice: number }) {
-    const [bids, setBids] = useState<OrderEntry[]>([]); // ฝั่งซื้อ (Buy)
-    const [asks, setAsks] = useState<OrderEntry[]>([]); // ฝั่งขาย (Sell)
+    const [bids, setBids] = useState<OrderEntry[]>([]); 
+    const [asks, setAsks] = useState<OrderEntry[]>([]); 
 
     useEffect(() => {
         const socket = io('http://localhost:3003');
 
-        // จำลองข้อมูล Order Book (ในระบบจริงจะรับจาก Socket)
         socket.on('priceUpdate', (data) => {
             const generateOrders = (basePrice: number, isAsk: boolean) => {
                 let cumulativeTotal = 0;
@@ -44,14 +43,12 @@ export default function OrderBook({ currentPrice }: { currentPrice: number }) {
                 <span className="text-[9px] font-bold text-slate-400 uppercase">BTC / USDT</span>
             </div>
 
-            {/* Table Header */}
             <div className="grid grid-cols-3 text-[9px] font-black text-slate-400 uppercase mb-2 px-2">
                 <span>Price</span>
                 <span className="text-right">Amount</span>
                 <span className="text-right">Total</span>
             </div>
 
-            {/* Asks (Sells) - สีแดงนุ่มนวล */}
             <div className="space-y-px mb-2">
                 {asks.map((ask, i) => (
                     <div key={`ask-${i}`} className="grid grid-cols-3 text-[10px] font-mono font-bold py-1 px-2 relative group hover:bg-slate-50 transition-colors">
@@ -62,14 +59,11 @@ export default function OrderBook({ currentPrice }: { currentPrice: number }) {
                     </div>
                 ))}
             </div>
-
-            {/* Spread Indicator */}
             <div className="py-3 border-y border-slate-50 my-2 text-center">
                 <p className="text-lg font-black text-slate-900 leading-none">${currentPrice.toLocaleString()}</p>
                 <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">Spread: 0.50 (0.01%)</p>
             </div>
 
-            {/* Bids (Buys) - สีเขียวนุ่มนวล */}
             <div className="space-y-px">
                 {bids.map((bid, i) => (
                     <div key={`bid-${i}`} className="grid grid-cols-3 text-[10px] font-mono font-bold py-1 px-2 relative group hover:bg-slate-50 transition-colors">

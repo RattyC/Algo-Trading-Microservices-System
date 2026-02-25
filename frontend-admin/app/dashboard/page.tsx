@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
-import { Activity, Zap, ShieldAlert, BarChart3, Settings2, Terminal, AlertTriangle, RefreshCcw, Wifi, WifiOff, Trash2 } from 'lucide-react';
+import { Activity, Zap, ShieldAlert, BarChart3, Settings2, Terminal, AlertTriangle, RefreshCcw, Wifi, WifiOff, Trash2, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
 import { useMarket } from '../hooks/useMarket';
 import MarketChart from '../components/MarketChart';
 import LogoutButton from '../components/LogoutButton';
@@ -21,7 +22,6 @@ export default function AdminDashboardPro() {
     setLogs(prev => [{ id: Date.now(), time, msg, type }, ...prev].slice(0, 5));
   };
 
-  // 2. อัปเกรด runCommand ให้รองรับ Method POST และ DELETE
   const runCommand = async (endpoint: string, payload: any = {}, method: 'POST' | 'DELETE' = 'POST') => {
     try {
       const token = Cookies.get('access_token');
@@ -42,7 +42,6 @@ export default function AdminDashboardPro() {
     }
   };
 
-
   const handlePurgeLogs = () => {
     const isConfirmed = window.confirm("⚠️ คำเตือน: คุณกำลังจะลบประวัติการเทรด 'ทั้งหมด' ออกจากฐานข้อมูลถาวร ยืนยันหรือไม่?");
     if (isConfirmed) {
@@ -52,7 +51,6 @@ export default function AdminDashboardPro() {
 
   return (
     <div className="angel-bg pb-12 min-h-screen">
-      {/* Header Section */}
       <nav className="border-b border-white bg-white/40 backdrop-blur-md sticky top-0 z-50 h-20 flex items-center">
         <div className="max-w-7xl mx-auto w-full px-8 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -75,7 +73,17 @@ export default function AdminDashboardPro() {
                 ${(price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
+
             <div className="h-8 w-px bg-slate-200" />
+
+            <Link
+              href="/trading"
+              className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-slate-200 hover:scale-105 active:scale-95"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Terminal
+            </Link>
+
             <LogoutButton />
           </div>
         </div>
@@ -99,7 +107,7 @@ export default function AdminDashboardPro() {
             </div>
           </div>
 
-          {/* System Kernel Log */}
+
           <div className="bg-slate-900 rounded-4xl p-6 font-mono text-white shadow-2xl relative overflow-hidden">
             <Terminal className="absolute top-4 right-4 text-white/5 w-24 h-24" />
             <div className="flex items-center gap-2 mb-4 text-slate-500">
@@ -119,7 +127,7 @@ export default function AdminDashboardPro() {
           </div>
         </div>
 
-        {/* Right Column: Manipulation Tools */}
+
         <div className="col-span-12 lg:col-span-4 space-y-6">
           <div className="glass-card p-8 space-y-6">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
@@ -156,17 +164,16 @@ export default function AdminDashboardPro() {
             </div>
           </div>
 
-          {/* 3. กล่อง Risk Protocol ที่อัปเดตเพิ่มปุ่มลบข้อมูล */}
           <div className="bg-rose-50/50 border border-rose-100 p-8 rounded-[2.5rem] space-y-4">
             <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-4">Risk & Data Protocol</h3>
-            
+
             <button
               onClick={() => runCommand('volatility', { level: 'crash' })}
               className="w-full bg-rose-500 hover:bg-rose-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-rose-200 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
               <AlertTriangle className="w-4 h-4" /> Trigger Black Swan Event
             </button>
-            
+
             <button
               onClick={handlePurgeLogs}
               className="w-full bg-white border border-rose-200 hover:bg-rose-50 text-rose-500 py-4 rounded-2xl font-black text-[10px] uppercase transition-all active:scale-95 flex items-center justify-center gap-2"

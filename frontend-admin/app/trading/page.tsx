@@ -1,3 +1,4 @@
+//frontend-admin/app/trading/page.tsx
 "use client";
 import React, { useState } from 'react';
 import { Wallet, History, Activity, ArrowUpRight, ArrowDownRight, LayoutDashboard } from 'lucide-react';
@@ -25,19 +26,28 @@ export default function ProfessionalTradingTerminal() {
     const onTradeExecute = async (type: 'BUY' | 'SELL') => {
         const qtyNumber = Number(orderQty);
 
-        // เช็คก่อนว่ากรอกตัวเลขมาถูกต้องไหม
-        if (!qtyNumber || qtyNumber <= 0) {
-            alert("❌ กรุณาระบุจำนวน BTC ที่ถูกต้อง");
+        if (isNaN(qtyNumber) || qtyNumber <= 0) {
+            alert("❌ กรุณาระบุจำนวน BTC ที่ถูกต้อง (ต้องมากกว่า 0)");
+            return;
+        }
+        if (!price || price <= 0) {
+            alert("⏳ กรุณารอระบบอัปเดตราคาล่าสุดจากตลาด...");
             return;
         }
 
-        const result = await handleTrade(type, qtyNumber, price);
+        try {
+            // 3. ส่งคำสั่งเทรดไปที่ Hook usePortfolio
+            const result = await handleTrade(type, qtyNumber, price);
 
-        if (result.success) {
-            alert(`✅ ทำรายการ ${type} จำนวน ${orderQty} BTC สำเร็จ!`);
-            setOrderQty("0.1"); 
-        } else {
-            alert(`❌ ปฏิเสธการเทรด: ${result.msg}`);
+            if (result.success) {
+                alert(`✅ ทำรายการ ${type} จำนวน ${qtyNumber} BTC สำเร็จ!`);
+                setOrderQty("0.1"); // รีเซ็ตค่ากลับเป็นค่าเริ่มต้น
+            } else {
+                alert(`❌ ปฏิเสธการเทรด: ${result.msg}`);
+            }
+        } catch (error) {
+            console.error("Trade Execution Error:", error);
+            alert("❌ ระบบขัดข้อง ไม่สามารถส่งคำสั่งเทรดได้");
         }
     };
 
